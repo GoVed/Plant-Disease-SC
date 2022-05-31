@@ -11,6 +11,7 @@ import time
 import random
 from pathlib import Path
 import iconsole
+import traceback
 
 '''
 Class to store data and process it
@@ -24,7 +25,13 @@ Methods:
             tkinterStatus=None   :   Tkinter status variable for GUI
         Return:
             None
-
+            
+    getImage:   Get a image from path, crop it to square and resize to given x and y
+        Args:
+            path:str    :   Path to the image to open
+        Return:
+            image:Numpy array   :   Processed image in numpy from the given path
+            
     trainTestSplit:     Splits the given dataset with given ratio, saves in given path for train and test
         Args:
             trainPath:str   :   Path to save train set
@@ -51,12 +58,13 @@ class Data:
         #Change from bgr to rgb for numpy processing
         self.changeColor=changeColor
     
-    #Gets images from the folder with labels as immediated heirarchy folder name to the path    
-    def proc(self,func,tkinterStatus=None):
+    #Gets images from the folder with labels as immediated heirarchy folder name to the path  
+    #func=None,tkinterStatus=None,randomBatchN:int=0,updateInfoEvery=10,loadImg=True,
+    def proc(self,data):
         
         #Initialize loader
         if self.info: 
-            loader = iconsole.Loader("Processing images", "Processed images", 0.05).start()
+            loader = iconsole.Loader("Processing images", "Processed images")
                         
         try:
                       
@@ -64,51 +72,77 @@ class Data:
             labels=[name for name in os.listdir(self.path)]
             
             #To count the speed of processing
-            lt=[time.time()-1]*10
+            lt=time.time()
+            updateCheck=0
+            updateInfoEvery=10
+            
+            if 'onStart' in data:
+                data['onStart']()
+            
+            if 'updateInfoEvery' in data:
+                updateInfoEvery=data['updateInfoEvery']
             for label in labels:
                 
                 #For each label get all files from the subdirectories
                 for ipath, subdirs, files in os.walk(os.path.join(self.path, label)):
-                    for name in files:                                                      
-                        if self.info:   
-                            status=os.path.join(ipath, name)+' '+(str(round(10/(lt[-1]-lt[0])))+'/s') if lt[-1]>lt[0] else ''
-                            loader.desc=status
-                            if not tkinterStatus is None:
-                                tkinterStatus.set(status)                                
-                        #Keeping the last 10 time for processing
-                        lt.append(time.time())
-                        lt.pop(0)
-                        
-                        #Reading the image then changing to rgb and resizing it
-                        img=cv2.imread(os.path.join(ipath, name))
-                        
-                            
-                        #Cropping to square
-                        w,h=img.shape[0],img.shape[1]
-                        if w!=h:
-                            if w<h:
-                                img=img[:,int(h/2)-int(w/2):int(h/2)+int(w/2),:]
+                    if 'randomBatchN' in data:
+                        if len(files)>data['randomBatchN']:
+                            random.shuffle(files)
+                            files=files[:data['randomBatchN']]                    
+                    for name in files:                          
+                        if self.info:
+                            if updateCheck>=updateInfoEvery:
+                                status=os.path.join(ipath, name)+' '+(str(round(updateInfoEvery/(time.time()-lt)))+'/s') if time.time()>lt else ''
+                                loader.desc=status
+                                if 'tkinterStatus' in data:
+                                    data['tkinterStatus'].set(status+'\nTime elapsed: '+loader.elapsedTime)                                                                
+                                lt=time.time()
+                                updateCheck=0
                             else:
-                                img=img[int(w/2)-int(h/2):int(w/2)+int(h/2),:,:]
+                                updateCheck+=1
                         
-                        #Resizing to given x and y
-                        img=cv2.resize(img,(self.x,self.y))
-                        
-                        if self.changeColor:
-                            img=cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
+                        #Get image from the path
+                        img=None
+                        if ('loadImg' in data) and (data['loadImg']):
+                            img=self.getImage(os.path.join(ipath, name))
                         
                         #Calling the process function
-                        func(img,os.path.relpath(ipath, self.path),name)
-            if not tkinterStatus is None:
-                tkinterStatus.set('Proccessed Images') 
+                        if 'func' in data:
+                            data['func'](img,os.path.relpath(ipath, self.path),name)
+                        
+            if 'tkinterStatus' in data:
+                data['tkinterStatus'].set('Proccessed Images') 
+                
+            if 'onEnd' in data:
+                data['onEnd']()
         
-        except Exception as e:
-            print('\nFailed to get Images\n',e)
+        except Exception :
+            print('\nFailed to get Images\n',traceback.print_exc())
                         
         #Stop the loader
-        if self.info: 
+        if self.info:             
             loader.stop()
        
+    def getImage(self,path):
+        #Reading the image then changing to rgb and resizing it
+        img=cv2.imread(path)
+                    
+        #Cropping to square
+        w,h=img.shape[0],img.shape[1]
+        if w!=h:
+            if w<h:
+                img=img[:,int(h/2)-int(w/2):int(h/2)+int(w/2),:]
+            else:
+                img=img[int(w/2)-int(h/2):int(w/2)+int(h/2),:,:]
+        
+        #Resizing to given x and y
+        img=cv2.resize(img,(self.x,self.y))
+        
+        if self.changeColor:
+            img=cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
+            
+        return img
+            
     # Splits the given dataset with given ratio
     def trainTestSplit(self,trainPath:str,testPath:str,split:float=0.7,tkinterStatus=None):
         
@@ -128,13 +162,20 @@ class Data:
             #Save operation
             cv2.imwrite(os.path.join(trainPath,name), img) if saveAt<split else cv2.imwrite(os.path.join(testPath,name), img)
             
-        #Call to process func
-        self.proc(_temp,tkinterStatus=tkinterStatus)
+        #Call to process func            
+        self.proc({'func':_temp,'tkinterStatus':tkinterStatus,'loadImg':True})
         
 
   
 if __name__=='__main__':
-    print('Noice')
+    td=Data(info=True,path='data\\raw')
+    count=0
+    def temp(img,relpath,name):
+        global count
+        count+=1
+    td.proc(temp,randomBatchN=5,loadImg=False)
+    print(count)
+    
     
    
     
