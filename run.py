@@ -201,8 +201,42 @@ class ManualSegmentFrame(tk.Frame):
     def __start(self):
         path,batchN,augmentN = self.__getVars()
         self.__getImagePaths(path,batchN)
-        self._currentImage=0
         
+        
+    def _motion(self,event):
+        py, px = round((event.x-2)/2), round((event.y-2)/2)
+        if px>255:
+            px=255
+        if px<0:
+            px=0
+        if py>255:
+            py=255
+        if py<0:
+            py=0
+        
+        self.status.set('Mouse X:'+str(px)+'\tY:'+str(py)+'\tCursor size '+str(self._cursorSize))
+        
+        fx=max(0,px-self._cursorSize)
+        tx=min(self.mask.shape[0],px+self._cursorSize)
+        fy=max(0,py-self._cursorSize)
+        ty=min(self.mask.shape[1],py+self._cursorSize)
+        if event.state%33==0:
+            self.mask[fx:tx,fy:ty]=255
+            self.__loadCurrImage()
+        if event.state%129==0:
+            self.mask[fx:tx,fy:ty]=0
+            self.__loadCurrImage()
+        
+    def _onScroll(self,event):
+        
+        if event.delta>0:
+            self._cursorSize+=1
+        else:
+            if self._cursorSize>0:
+                self._cursorSize-=1  
+                
+        self.status.set('Mouse X:'+str(px)+'\tY:'+str(py)+'\tCursor size '+str(self._cursorSize))
+         
         
     def _setHSVMask(self):
         self.mask=iproc.threshMask(iproc.rgb_to_hsv(self.npimage),lowerbound=np.array([0.02,0,0]),upperbound=np.array([0.5,0,0]),mode=0).reshape(256,256,1)
@@ -248,11 +282,15 @@ class ManualSegmentFrame(tk.Frame):
             
         def onEnd():
             self.status.set('Got the images...')
-            
+            self._currentImage=0
+            self._cursorSize=2
             self._setNpImage()
             self._setHSVMask()
             #Set the first image
             self.__loadCurrImage()
+            
+            self.UIe['canvas'].bind('<Motion>', self._motion)
+            self.UIe['canvas'].bind("<MouseWheel>", self._onScroll)
             
         #making the processing object
         td=iproc.Data(path=path)
