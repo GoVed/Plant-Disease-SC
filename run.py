@@ -8,6 +8,7 @@ import tkinter as tk
 import iproc
 import threading
 from PIL import ImageTk, Image
+import numpy as np
 '''
 Class to make Graphical User Interface
 
@@ -164,8 +165,8 @@ class ManualSegmentFrame(tk.Frame):
         self.UIe['canvas'].grid(row=4,column=0,columnspan=2)
         
         #To change the displayed image
-        self.UIe['nextImage'] = tk.Button(self,text = "Save & Next",command = self.__countImages)
-        self.UIe['prevImage'] = tk.Button(self,text = "Previous",command = self.__countImages)
+        self.UIe['nextImage'] = tk.Button(self,text = "Save & Next",command = self.__loadNextImage)
+        self.UIe['prevImage'] = tk.Button(self,text = "Previous",command = self.__loadPrevImage)
         self.UIe['resetImage'] = tk.Button(self,text = "Reset",command = self.__start)
         self.UIe['nextImage'].grid(row=5,column=0,columnspan=2)
         self.UIe['prevImage'].grid(row=6,column=0)
@@ -200,8 +201,42 @@ class ManualSegmentFrame(tk.Frame):
     def __start(self):
         path,batchN,augmentN = self.__getVars()
         self.__getImagePaths(path,batchN)
-    
+        self._currentImage=0
         
+        
+    def _setHSVMask(self):
+        self.mask=iproc.threshMask(iproc.rgb_to_hsv(self.npimage),lowerbound=np.array([0.02,0,0]),upperbound=np.array([0.5,0,0]),mode=0).reshape(256,256,1)
+        
+    def _setNpImage(self):
+        self.npimage=iproc.getImage(self.imagePaths[self._currentImage]['root']+'\\'+self.imagePaths[self._currentImage]['path']+'\\'+self.imagePaths[self._currentImage]['name'],changeColor=True)
+        
+    def __loadCurrImage(self):      
+        _=(self.npimage/2)+(self.npimage/4*self.mask)+((np.full(self.npimage.shape,1)*np.array([255/4,0,0]))*self.mask)
+        self.image=ImageTk.PhotoImage(Image.fromarray((_).astype(np.uint8)).resize((512, 512),2))
+        self.UIe['canvas'].configure(image=self.image)
+    
+    def __loadNextImage(self):
+        if self._currentImage<len(self.imagePaths):
+            self._currentImage+=1
+            self._setNpImage()
+            self._setHSVMask()
+            self.__loadCurrImage()
+            
+            
+        else:
+            self.status.set('Last image reach, start with new batch of image')
+            
+    def __loadPrevImage(self):
+        if self._currentImage>0:
+            self._currentImage-=1
+            self._setNpImage()
+            self._setHSVMask()
+            self.__loadCurrImage()
+            
+        else:
+            self.status.set('First image reached!')
+            
+            
     #Get paths of the image which are going to be processed
     def __getImagePaths(self,path,batchN):
         self.imagePaths=[]
@@ -209,14 +244,15 @@ class ManualSegmentFrame(tk.Frame):
             self.status.set('Getting image paths...')
         
         def getPaths(img,relpath,name):
-            self.imagePaths.append({'path':relpath,'name':name})  
+            self.imagePaths.append({'path':relpath,'name':name,'root':path})  
             
         def onEnd():
             self.status.set('Got the images...')
             
+            self._setNpImage()
+            self._setHSVMask()
             #Set the first image
-            self.image=ImageTk.PhotoImage(Image.open(path+'\\'+self.imagePaths[0]['path']+'\\'+self.imagePaths[0]['name']).resize((512, 512),2))
-            self.UIe['canvas'].configure(image=self.image)
+            self.__loadCurrImage()
             
         #making the processing object
         td=iproc.Data(path=path)

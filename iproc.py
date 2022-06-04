@@ -12,7 +12,9 @@ import random
 from pathlib import Path
 import iconsole
 import traceback
-
+from matplotlib.colors import rgb_to_hsv
+import numpy as np
+import numba as nb
 '''
 Class to store data and process it
 Data:
@@ -24,13 +26,7 @@ Methods:
             func:function  : A function to be processed (pass it as object) 
             tkinterStatus=None   :   Tkinter status variable for GUI
         Return:
-            None
-            
-    getImage:   Get a image from path, crop it to square and resize to given x and y
-        Args:
-            path:str    :   Path to the image to open
-        Return:
-            image:Numpy array   :   Processed image in numpy from the given path
+            None            
             
     trainTestSplit:     Splits the given dataset with given ratio, saves in given path for train and test
         Args:
@@ -104,7 +100,7 @@ class Data:
                         #Get image from the path
                         img=None
                         if ('loadImg' in data) and (data['loadImg']):
-                            img=self.getImage(os.path.join(ipath, name))
+                            img=getImage(os.path.join(ipath, name),(self.x,self.y),self.changeColor)
                         
                         #Calling the process function
                         if 'func' in data:
@@ -122,26 +118,7 @@ class Data:
         #Stop the loader
         if self.info:             
             loader.stop()
-       
-    def getImage(self,path):
-        #Reading the image then changing to rgb and resizing it
-        img=cv2.imread(path)
-                    
-        #Cropping to square
-        w,h=img.shape[0],img.shape[1]
-        if w!=h:
-            if w<h:
-                img=img[:,int(h/2)-int(w/2):int(h/2)+int(w/2),:]
-            else:
-                img=img[int(w/2)-int(h/2):int(w/2)+int(h/2),:,:]
-        
-        #Resizing to given x and y
-        img=cv2.resize(img,(self.x,self.y))
-        
-        if self.changeColor:
-            img=cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
-            
-        return img
+           
             
     # Splits the given dataset with given ratio
     def trainTestSplit(self,trainPath:str,testPath:str,split:float=0.7,tkinterStatus=None):
@@ -164,16 +141,65 @@ class Data:
             
         #Call to process func            
         self.proc({'func':_temp,'tkinterStatus':tkinterStatus,'loadImg':True})
-        
 
-  
+
+'''
+getImage:   Get a image from path, crop it to square and resize to given x and y
+    Args:
+        path:str    :   Path to the image to open
+    Return:
+        image:Numpy array   :   Processed image in numpy from the given path
+'''        
+def getImage(path,size=(0,0),changeColor:bool=False):
+    #Reading the image then changing to rgb and resizing it
+    img=cv2.imread(path)
+                
+    #Cropping to square
+    w,h=img.shape[0],img.shape[1]
+    if w!=h:
+        if w<h:
+            img=img[:,int(h/2)-int(w/2):int(h/2)+int(w/2),:]
+        else:
+            img=img[int(w/2)-int(h/2):int(w/2)+int(h/2),:,:]
+    
+    #Resizing to given x and y
+    if size!=(0,0):
+        img=cv2.resize(img,size)
+    
+    if changeColor:
+        img=cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
+        
+    return img
+ 
+@nb.njit
+def threshMask(img,lowerbound=np.array([0,0,0]),upperbound=np.array([1,1,255]),mode=-1):    
+    mask=np.full((img.shape[0],img.shape[1]),False)
+    for i in range(img.shape[0]):        
+        for j in range(img.shape[1]):
+            if mode==-2:
+                mask[i,j]=(img[i,j,:]>=lowerbound).all() and (img[i,j,:]<=upperbound).all()
+            elif mode==-1:                
+                mask[i,j]=(img[i,j,:]>=lowerbound).any() and (img[i,j,:]<=upperbound).any()  
+            else:
+                mask[i,j]=img[i,j,mode]>=lowerbound[mode] and img[i,j,mode]<=upperbound[mode]           
+    return mask
+
+
+ 
+
+    
 if __name__=='__main__':
     td=Data(info=True,path='data\\raw')
+    td.changeColor=True
     count=0
+    mask=[]
+    imgs=[]
     def temp(img,relpath,name):
         global count
         count+=1
-    td.proc(temp,randomBatchN=5,loadImg=False)
+        imgs.append(rgb_to_hsv(img))
+        mask.append(threshMask(rgb_to_hsv(img),lowerbound=np.array([0.02,0,0]),upperbound=np.array([0.6,0,0]),mode=0))
+    td.proc({'func':temp,'randomBatchN':1,'loadImg':True})
     print(count)
     
     
