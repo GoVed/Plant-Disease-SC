@@ -15,6 +15,7 @@ import traceback
 from matplotlib.colors import rgb_to_hsv
 import numpy as np
 import numba as nb
+from scipy import ndimage
 '''
 Class to store data and process it
 Data:
@@ -171,8 +172,21 @@ def getImage(path,size=(0,0),changeColor:bool=False):
         
     return img
  
+'''
+threshMask (uses numba njit)
+    It generates a mask using the threshold value with given 3 channel image
+Args:
+    lowerbound:np array:    Lowerbound for threshold
+    upperbound:np array:    Upperbound for threshold
+    mode:int:
+        -2      Check all threshold limits (and)
+        -1      Check any threshold limit (or)
+        0/1/2   Check 0/1/2 channel of the image for threshold
+Return:
+    mask:np array:  Binary numpy array of same shape as input image of threshold values
+'''
 @nb.njit
-def threshMask(img,lowerbound=np.array([0,0,0]),upperbound=np.array([1,1,255]),mode=-1):    
+def threshMask(img,lowerbound=np.array([0,0,0]),upperbound=np.array([1,1,255]),mode:int=-1):    
     mask=np.full((img.shape[0],img.shape[1]),False)
     for i in range(img.shape[0]):        
         for j in range(img.shape[1]):
@@ -184,9 +198,97 @@ def threshMask(img,lowerbound=np.array([0,0,0]),upperbound=np.array([1,1,255]),m
                 mask[i,j]=img[i,j,mode]>=lowerbound[mode] and img[i,j,mode]<=upperbound[mode]           
     return mask
 
+"""
+Center zoom in/out of the given image and returning an enlarged/shrinked view of the image without changing dimensions
+------
+Args:
+    img : ndarray:  Image array
+    zoom_factor : float:    amount of zoom as a ratio [0 to Inf). Default 0.
+------
+Returns:
+    result: ndarray:    numpy ndarray of the same shape of the input img zoomed by the specified factor.          
+"""
+def cv2_clipped_zoom(img, zoom_factor=0):
 
- 
+    
+    if zoom_factor == 0:
+        return img
 
+
+    height, width = img.shape[:2] # It's also the final desired shape
+    new_height, new_width = int(height * zoom_factor), int(width * zoom_factor)
+    
+    ### Crop only the part that will remain in the result (more efficient)
+    # Centered bbox of the final desired size in resized (larger/smaller) image coordinates
+    y1, x1 = max(0, new_height - height) // 2, max(0, new_width - width) // 2
+    y2, x2 = y1 + height, x1 + width
+    bbox = np.array([y1,x1,y2,x2])
+    # Map back to original image coordinates
+    bbox = (bbox / zoom_factor).astype(np.int32)
+    y1, x1, y2, x2 = bbox
+    cropped_img = img[y1:y2, x1:x2]
+    
+    # Handle padding when downscaling
+    resize_height, resize_width = min(new_height, height), min(new_width, width)
+    pad_height1, pad_width1 = (height - resize_height) // 2, (width - resize_width) //2
+    pad_height2, pad_width2 = (height - resize_height) - pad_height1, (width - resize_width) - pad_width1
+    pad_spec = [(pad_height1, pad_height2), (pad_width1, pad_width2)] + [(0,0)] * (img.ndim - 2)
+    
+    result = cv2.resize(cropped_img, (resize_width, resize_height))
+    result = np.pad(result, pad_spec, mode='constant')
+    assert result.shape[0] == height and result.shape[1] == width
+    return result
+
+def augment(img,mask,path='BGseg/',rotate=True,zoom=True,bg=True,n=5):
+    
+    
+    mask=np.array(mask,dtype=np.uint8)
+    mask*=255
+    
+    imgs=[img]
+    
+    masks=[mask]
+    for i in range(n):
+        newimg=np.copy(img)
+        newmask=np.copy(mask)
+        
+        if bg:
+            image=[name for name in os.listdir(path)]
+            image=image[random.randint(0,len(image)-1)]
+            image=cv2_clipped_zoom(ndimage.rotate(cv2.resize(cv2.cvtColor(cv2.imread(path+'/'+image),cv2.COLOR_BGR2RGB),(img.shape[0],img.shape[1])), random.randint(0,360), reshape=False),(random.random()/2)+1)
+            
+            newimg=cv2.bitwise_and(newimg,newimg, mask=newmask)
+            image=cv2.bitwise_and(image,image, mask=255 - newmask)
+            
+            newimg=cv2.add(newimg,image,dtype=cv2.CV_64F)
+        if rotate:
+            rran=random.randint(0,360)
+            newimg=ndimage.rotate(newimg, rran, reshape=False)
+            newmask=ndimage.rotate(newmask, rran, reshape=False)
+        if zoom:
+            zran=(random.random()/2)+1
+            newimg=cv2_clipped_zoom(newimg,zran)
+            newmask=cv2_clipped_zoom(newmask,zran)
+        
+        imgs.append(newimg.astype(np.uint8))
+        masks.append(newmask.astype(np.uint8))
+    return imgs,masks
+
+'''
+saveImage:  Save numpy mage to the given path
+Args:
+        img:ndarray    numpy image
+        path:str       Save path
+        name:Str       Save Name
+'''
+def saveImage(img,path:str,name:str,changeToBGR=True):
+    #Check if path exists or creats it
+    Path(path).mkdir(parents=True, exist_ok=True)
+    #Write image to the path    
+    if changeToBGR:
+        cv2.imwrite(path+'\\'+name, cv2.cvtColor(img,cv2.COLOR_RGB2BGR))
+    else:
+        cv2.imwrite(path+'\\'+name, img)
     
 if __name__=='__main__':
     td=Data(info=True,path='data\\raw')
@@ -195,10 +297,14 @@ if __name__=='__main__':
     mask=[]
     imgs=[]
     def temp(img,relpath,name):
-        global count
+        global count,imgs,mask
         count+=1
-        imgs.append(rgb_to_hsv(img))
-        mask.append(threshMask(rgb_to_hsv(img),lowerbound=np.array([0.02,0,0]),upperbound=np.array([0.6,0,0]),mode=0))
+        
+        cm=(threshMask(rgb_to_hsv(img),lowerbound=np.array([0.02,0,0]),upperbound=np.array([0.6,0,0]),mode=0))
+        ai,am=augment(img,cm,path='data/raw/Negative/Negative/',rotate=True,zoom=True,bg=True,n=5)
+        imgs+=ai
+        mask+=am
+        
     td.proc({'func':temp,'randomBatchN':1,'loadImg':True})
     print(count)
     

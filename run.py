@@ -151,26 +151,30 @@ class ManualSegmentFrame(tk.Frame):
         self.UIe['augmentNLabel'].grid(row=2,column=0)
         self.UIe['augmentN'].grid(row=2,column=1)
         
+        #UI to show save path label and input
+        self.UIe['savePathLabel'] = tk.Label(self, text = 'Save Path:')  
+        self.UIe['savePath'] = tk.Text(self,height = 1,width = 20) 
+        self.UIe['savePathLabel'].grid(row=3,column=0)
+        self.UIe['savePath'].grid(row=3,column=1)
         
         #UI to show count image button
         self.UIe['countImages'] = tk.Button(self,text = "Count Images",command = self.__countImages)
         self.UIe['start'] = tk.Button(self,text = "Start",command = self.__start)
-        self.UIe['countImages'].grid(row=3,column=0)
-        self.UIe['start'].grid(row=3,column=1)
-        
-        
+        self.UIe['countImages'].grid(row=4,column=0)
+        self.UIe['start'].grid(row=4,column=1)
+                
         #Canvas to show the image
         self.image=ImageTk.PhotoImage(Image.open('asset/image/preload.png').resize((512, 512),2))
         self.UIe['canvas']=tk.Label(self,image=self.image)
-        self.UIe['canvas'].grid(row=4,column=0,columnspan=2)
+        self.UIe['canvas'].grid(row=5,column=0,columnspan=2)
         
         #To change the displayed image
         self.UIe['nextImage'] = tk.Button(self,text = "Save & Next",command = self.__loadNextImage)
         self.UIe['prevImage'] = tk.Button(self,text = "Previous",command = self.__loadPrevImage)
         self.UIe['resetImage'] = tk.Button(self,text = "Reset",command = self.__start)
-        self.UIe['nextImage'].grid(row=5,column=0,columnspan=2)
-        self.UIe['prevImage'].grid(row=6,column=0)
-        self.UIe['resetImage'].grid(row=6,column=1)
+        self.UIe['nextImage'].grid(row=6,column=0,columnspan=2)
+        self.UIe['prevImage'].grid(row=7,column=0)
+        self.UIe['resetImage'].grid(row=7,column=1)
      
     #To count how many images are going to be shown with given parameters
     def __countImages(self):
@@ -196,60 +200,85 @@ class ManualSegmentFrame(tk.Frame):
         countThread=threading.Thread(target=td.proc,args=({'func':temp,'randomBatchN':batchN,'onEnd':onEnd,'onStart':onStart},))
         countThread.setDaemon(True)
         countThread.start()
+      
         
     
     def __start(self):
-        path,batchN,augmentN = self.__getVars()
-        self.__getImagePaths(path,batchN)
+        #Get input variables
+        self.path,self.batchN,self.augmentN = self.__getVars()
         
+        #Get images paths to be processed
+        self.__getImagePaths(self.path,self.batchN)
         
+    #On mouse move
     def _motion(self,event):
-        py, px = round((event.x-2)/2), round((event.y-2)/2)
-        if px>255:
-            px=255
-        if px<0:
-            px=0
-        if py>255:
-            py=255
-        if py<0:
-            py=0
+        #Get mouse coordinates and bound them to 0-255
+        self.py, self.px = round((event.x-2)/2), round((event.y-2)/2)
+        if self.px>255:
+            self.px=255
+        if self.px<0:
+            self.px=0
+        if self.py>255:
+            self.py=255
+        if self.py<0:
+            self.py=0
         
-        self.status.set('Mouse X:'+str(px)+'\tY:'+str(py)+'\tCursor size '+str(self._cursorSize))
+        #Update status
+        self.status.set(str(self._currentImage+1)+'/'+str(len(self.imagePaths))+'\tMouse X:'+str(self.px)+'\tY:'+str(self.py)+'\tCursor size '+str(self._cursorSize))
         
-        fx=max(0,px-self._cursorSize)
-        tx=min(self.mask.shape[0],px+self._cursorSize)
-        fy=max(0,py-self._cursorSize)
-        ty=min(self.mask.shape[1],py+self._cursorSize)
+        #Calculate the modfying rea using the cursor size
+        fx=max(0,self.px-self._cursorSize)
+        tx=min(self.mask.shape[0],self.px+self._cursorSize)
+        fy=max(0,self.py-self._cursorSize)
+        ty=min(self.mask.shape[1],self.py+self._cursorSize)
+        
+        #left click
         if event.state%33==0:
             self.mask[fx:tx,fy:ty]=255
             self.__loadCurrImage()
+            
+        #right click
         if event.state%129==0:
             self.mask[fx:tx,fy:ty]=0
             self.__loadCurrImage()
-        
+     
+    #on mouse scroll
     def _onScroll(self,event):
-        
+        #scroll up and down to change cursor size
         if event.delta>0:
             self._cursorSize+=1
         else:
             if self._cursorSize>0:
                 self._cursorSize-=1  
                 
-        self.status.set('Mouse X:'+str(px)+'\tY:'+str(py)+'\tCursor size '+str(self._cursorSize))
+        self.status.set(str(self._currentImage+1)+'/'+str(len(self.imagePaths))+'\tMouse X:'+str(self.px)+'\tY:'+str(self.py)+'\tCursor size '+str(self._cursorSize))
          
-        
+    #Calculate HSV mask using the current image
     def _setHSVMask(self):
         self.mask=iproc.threshMask(iproc.rgb_to_hsv(self.npimage),lowerbound=np.array([0.02,0,0]),upperbound=np.array([0.5,0,0]),mode=0).reshape(256,256,1)
-        
+      
+    #Get the image in numpy array
     def _setNpImage(self):
         self.npimage=iproc.getImage(self.imagePaths[self._currentImage]['root']+'\\'+self.imagePaths[self._currentImage]['path']+'\\'+self.imagePaths[self._currentImage]['name'],changeColor=True)
         
+    #From numpy image and hsv mask, calculate the image to show
     def __loadCurrImage(self):      
         _=(self.npimage/2)+(self.npimage/4*self.mask)+((np.full(self.npimage.shape,1)*np.array([255/4,0,0]))*self.mask)
         self.image=ImageTk.PhotoImage(Image.fromarray((_).astype(np.uint8)).resize((512, 512),2))
         self.UIe['canvas'].configure(image=self.image)
     
+    #Saves the image
+    def __saveImage(self):
+        
+        ai,am=iproc.augment(self.npimage,self.mask[:,:,0],path='data/raw/Negative/Negative/',rotate=True,zoom=True,bg=True,n=self.augmentN)
+        for i in range(len(ai)):            
+            iproc.saveImage(ai[i], self._savePath+'\\image\\'+self.imagePaths[self._currentImage]['path'],str(i)+self.imagePaths[self._currentImage]['name'])
+            iproc.saveImage(am[i], self._savePath+'\\mask\\'+self.imagePaths[self._currentImage]['path'],str(i)+self.imagePaths[self._currentImage]['name'],changeToBGR=False)
+        self.status.set('Saved')
+        
+    #loads next image in the image list
     def __loadNextImage(self):
+        self.__saveImage()
         if self._currentImage<len(self.imagePaths):
             self._currentImage+=1
             self._setNpImage()
@@ -259,7 +288,8 @@ class ManualSegmentFrame(tk.Frame):
             
         else:
             self.status.set('Last image reach, start with new batch of image')
-            
+        
+    #loads prev image in the image list            
     def __loadPrevImage(self):
         if self._currentImage>0:
             self._currentImage-=1
@@ -307,9 +337,14 @@ class ManualSegmentFrame(tk.Frame):
             batchN=int(self.UIe['batchN'].get(1.0, "end-1c"))
             augmentN=0
             augmentNtxt=self.UIe['augmentN'].get(1.0, "end-1c")
-            if len(augmentNtxt)>0:
-                augmentN=int(augmentNtxt)
-            return path,batchN,augmentN
+            self._savePath=self.UIe['savePath'].get(1.0, "end-1c")
+            if len(self._savePath)>0:
+                if len(augmentNtxt)>0:
+                    augmentN=int(augmentNtxt)
+                return path,batchN,augmentN
+            else:
+                self.status.set('Enter the save path')
+                return '',0,0
         except ValueError:
             self.status.set('BatchN and AugmentN must be an integer') 
             return '',0,0
