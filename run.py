@@ -41,7 +41,7 @@ class GUI(tk.Tk):
         #Buttons to switch frames
         self.UIe['setTrainTestFrame']=tk.Button(self,text='Split Dataset',command=lambda:self.switch_frame(TrainTestFrame)).grid(row=1,column=0)
         self.UIe['setTrainTestFrame']=tk.Button(self,text='Manually Segment',command=lambda:self.switch_frame(ManualSegmentFrame)).grid(row=1,column=1)
-        
+        self.UIe['setModelTraining']=tk.Button(self,text='Train Model',command=lambda:self.switch_frame(TrainModelFrame)).grid(row=1,column=2)
         #Set initial frame to Train Test Frame
         self.switch_frame(TrainTestFrame)
         
@@ -54,7 +54,7 @@ class GUI(tk.Tk):
         if self._frame is not None:
             self._frame.destroy()
         self._frame=frame(self)
-        self._frame.grid(row=2,column=0,columnspan=2)
+        self._frame.grid(row=2,column=0,columnspan=3)
         
         
 '''
@@ -279,7 +279,7 @@ class ManualSegmentFrame(tk.Frame):
     #loads next image in the image list
     def __loadNextImage(self):
         self.__saveImage()
-        if self._currentImage<len(self.imagePaths):
+        if self._currentImage<len(self.imagePaths)-1:
             self._currentImage+=1
             self._setNpImage()
             self._setHSVMask()
@@ -287,7 +287,7 @@ class ManualSegmentFrame(tk.Frame):
             
             
         else:
-            self.status.set('Last image reach, start with new batch of image')
+            self.status.set('Last image reach, start with a new batch of image')
         
     #loads prev image in the image list            
     def __loadPrevImage(self):
@@ -348,7 +348,10 @@ class ManualSegmentFrame(tk.Frame):
         except ValueError:
             self.status.set('BatchN and AugmentN must be an integer') 
             return '',0,0
-
+class TrainModelFrame(tk.Frame):
+    def __init__(self,master):
+        tk.Frame.__init__(self,master)
+        
 if __name__=='__main__':
     gui=GUI()    
     gui.run()

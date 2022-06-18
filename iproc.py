@@ -12,10 +12,10 @@ import random
 from pathlib import Path
 import iconsole
 import traceback
-from matplotlib.colors import rgb_to_hsv
 import numpy as np
 import numba as nb
 from scipy import ndimage
+import threading
 '''
 Class to store data and process it
 Data:
@@ -27,7 +27,7 @@ Methods:
             func:function  : A function to be processed (pass it as object) 
             tkinterStatus=None   :   Tkinter status variable for GUI
         Return:
-            None            
+            Custom:     Returns anything tht the user wants (Default None)
             
     trainTestSplit:     Splits the given dataset with given ratio, saves in given path for train and test
         Args:
@@ -57,8 +57,7 @@ class Data:
     
     #Gets images from the folder with labels as immediated heirarchy folder name to the path  
     #func=None,tkinterStatus=None,randomBatchN:int=0,updateInfoEvery=10,loadImg=True,
-    def proc(self,data):
-        
+    def proc(self,data):        
         #Initialize loader
         if self.info: 
             loader = iconsole.Loader("Processing images", "Processed images")
@@ -106,6 +105,9 @@ class Data:
                         #Calling the process function
                         if 'func' in data:
                             data['func'](img,os.path.relpath(ipath, self.path),name)
+                            
+                        
+                                                    
                         
             if 'tkinterStatus' in data:
                 data['tkinterStatus'].set('Proccessed Images') 
@@ -119,6 +121,9 @@ class Data:
         #Stop the loader
         if self.info:             
             loader.stop()
+        
+        if 'return' in data and data['return']:
+            return self.returnVal
            
             
     # Splits the given dataset with given ratio
@@ -289,25 +294,32 @@ def saveImage(img,path:str,name:str,changeToBGR=True):
         cv2.imwrite(path+'\\'+name, cv2.cvtColor(img,cv2.COLOR_RGB2BGR))
     else:
         cv2.imwrite(path+'\\'+name, img)
+ 
+def getImageFromFolderAsync(XPath,YPath,n=5):
+    getData=Data()
+    getData.path=XPath
+    getData.returnVal={}
+    getData.returnVal['X']=[]
+    getData.returnVal['Y']=[]
+    getData.XPath=XPath
+    getData.YPath=YPath
     
+    def getimg(img,relpath,name):
+        
+        getData.returnVal['X'].append(getImage(os.path.join(os.path.join(getData.XPath, relpath),name),(getData.x,getData.y),getData.changeColor))
+        getData.returnVal['Y'].append(getImage(os.path.join(os.path.join(getData.YPath, relpath),name),(getData.x,getData.y),getData.changeColor))
+        # getData.returnVal.append(img)
+       
+        
+    thread=threading.Thread(target=getData.proc,args=({'func':getimg,'return':True,'loadImg':True,'randomBatchN':n},))
+    thread.setDaemon(True)
+    thread.start() 
+    
+    return thread,getData  
 if __name__=='__main__':
-    td=Data(info=True,path='data\\raw')
-    td.changeColor=True
-    count=0
-    mask=[]
-    imgs=[]
-    def temp(img,relpath,name):
-        global count,imgs,mask
-        count+=1
-        
-        cm=(threshMask(rgb_to_hsv(img),lowerbound=np.array([0.02,0,0]),upperbound=np.array([0.6,0,0]),mode=0))
-        ai,am=augment(img,cm,path='data/raw/Negative/Negative/',rotate=True,zoom=True,bg=True,n=5)
-        imgs+=ai
-        mask+=am
-        
-    td.proc({'func':temp,'randomBatchN':1,'loadImg':True})
-    print(count)
     
+    print('Nice run!')
     
+ 
    
     
