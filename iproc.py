@@ -16,6 +16,7 @@ import numpy as np
 import numba as nb
 from scipy import ndimage
 import threading
+
 '''
 Class to store data and process it
 Data:
@@ -280,42 +281,86 @@ def augment(img,mask,path='BGseg/',rotate=True,zoom=True,bg=True,n=5):
     return imgs,masks
 
 '''
-saveImage:  Save numpy mage to the given path
-Args:
-        img:ndarray    numpy image
-        path:str       Save path
-        name:Str       Save Name
+createPathIfNotExist:
+    Check if path exists, if not then creats it
+    Args:
+        path:str    Path to be created
+    
+'''
+def createPathIfNotExist(path:str):
+    Path(path).mkdir(parents=True, exist_ok=True)
+
+'''
+saveImage:  
+    Save numpy mage to the given path
+    Args:
+            img:ndarray    numpy image
+            path:str       Save path
+            name:Str       Save Name
 '''
 def saveImage(img,path:str,name:str,changeToBGR=True):
     #Check if path exists or creats it
-    Path(path).mkdir(parents=True, exist_ok=True)
+    createPathIfNotExist(path)
     #Write image to the path    
     if changeToBGR:
         cv2.imwrite(path+'\\'+name, cv2.cvtColor(img,cv2.COLOR_RGB2BGR))
     else:
         cv2.imwrite(path+'\\'+name, img)
- 
-def getImageFromFolderAsync(XPath,YPath,n=5):
+
+'''
+getImageFromFolderAsync:
+    Using threading get Images from the folder with subfolders in async
+    Args:
+        XPath:str   path for features
+        YPath:str   path for labels
+        n:int       number of images to be taken per subfolder
+'''
+def getImageFromFolderAsync(XPath:str,YPath:str,n:int=5):
+    
+    #create data object for processing
     getData=Data()
+    
+    #setting the train folder path
     getData.path=XPath
+    
+    #variable to be returned in async
     getData.returnVal={}
     getData.returnVal['X']=[]
     getData.returnVal['Y']=[]
+    
+    #setting the class varibale for train and test paths
     getData.XPath=XPath
     getData.YPath=YPath
     
+    
+    #update function for each image
     def getimg(img,relpath,name):
         
+        #Get image from the train set
         getData.returnVal['X'].append(getImage(os.path.join(os.path.join(getData.XPath, relpath),name),(getData.x,getData.y),getData.changeColor))
-        getData.returnVal['Y'].append(getImage(os.path.join(os.path.join(getData.YPath, relpath),name),(getData.x,getData.y),getData.changeColor))
-        # getData.returnVal.append(img)
-       
         
+        #Get image from the test set
+        getData.returnVal['Y'].append(getImage(os.path.join(os.path.join(getData.YPath, relpath),name),(getData.x,getData.y),getData.changeColor))        
+       
+    #Setting the thread    
     thread=threading.Thread(target=getData.proc,args=({'func':getimg,'return':True,'loadImg':True,'randomBatchN':n},))
     thread.setDaemon(True)
     thread.start() 
     
+    #Returning the started thread to do the processing
     return thread,getData  
+
+'''
+getFolders:
+    get the names of the folder in the given path
+    Args:
+        path:str        The path in which the list of folder is needed
+    Return:
+        folders:list    The list of folder in string present in the path
+'''
+def getFolders(path):
+    return [f.name for f in os.scandir(path) if f.is_dir()]
+
 if __name__=='__main__':
     
     print('Nice run!')

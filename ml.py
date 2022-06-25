@@ -15,126 +15,366 @@ segmentML:
 '''
 class SegmentML:
     
-    def __init__(self,datasetPath:str='data/train/manseg',setModel=True):
+    def __init__(self,datasetPath:str='data/train/manseg'):
         self.path=datasetPath
-        if setModel:
-            self.setModel()
+        self.setModel={}
+        self.setModel[1]=self.__setModel1
+        self.setModel[2]=self.__setModel2
+        self.setModel[3]=self.__setModel3
+        self.models={}
+        self.modelSavePath=''
+        for model in self.setModel:
+            self.setModel[model]()
             
+    
+        
+    
     '''
-    setModel:
-        to set the model into the class variable
+    __setModel1:
+        to set model with type 1 structure
         Args:
             input shape:
                 Tuple containing the input shape of the image
         Return:
-            None
+            keras seq model
+            
+    __setModel2:
+        to set model with type 2 structure
+        Args:
+            input shape:
+                Tuple containing the input shape of the image
+        Return:
+            keras seq model
+            
+    __setModel3:
+        to set model with type 3 structure
+        Args:
+            input shape:
+                Tuple containing the input shape of the image
+        Return:
+            keras seq model
+            
     '''
-    def setModel(self,input_shape=(256,256,3)):
-        self.model = tf.keras.models.Sequential()            
+    def __setModel1(self,input_shape=(256,256,3)):
+        self.models[1] = tf.keras.models.Sequential()            
         
-        self.model.add(tf.keras.layers.Convolution2D(16, (2,2), padding='same',input_shape=input_shape))        
-        self.model.add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        self.models[1].add(tf.keras.layers.Convolution2D(16, (2,2), padding='same',input_shape=input_shape))        
+        self.models[1].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
         
         
-        self.model.add(tf.keras.layers.Convolution2D(16, (3,3), padding='same'))
-        self.model.add(tf.keras.layers.LeakyReLU(alpha=0.2))        
-        self.model.add(tf.keras.layers.Dropout(0.3))
+        self.models[1].add(tf.keras.layers.Convolution2D(16, (3,3), padding='same'))
+        self.models[1].add(tf.keras.layers.LeakyReLU(alpha=0.2))        
+        self.models[1].add(tf.keras.layers.Dropout(0.3))
         
-        self.model.add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None, padding="same"))
+        self.models[1].add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None, padding="same"))
         
-        self.model.add(tf.keras.layers.Convolution2D(32, (2,2), padding='same'))        
-        self.model.add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))        
+        self.models[1].add(tf.keras.layers.Convolution2D(32, (2,2), padding='same'))        
+        self.models[1].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))        
         
-        self.model.add(tf.keras.layers.Convolution2D(32, (3,3), padding='same'))
-        self.model.add(tf.keras.layers.LeakyReLU(alpha=0.2))        
-        self.model.add(tf.keras.layers.Dropout(0.3))
+        self.models[1].add(tf.keras.layers.Convolution2D(32, (3,3), padding='same'))
+        self.models[1].add(tf.keras.layers.LeakyReLU(alpha=0.2))        
+        self.models[1].add(tf.keras.layers.Dropout(0.3))
         
-        self.model.add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None, padding="same"))
+        self.models[1].add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None, padding="same"))
         
-        self.model.add(tf.keras.layers.Convolution2D(64, (2,2), padding='same'))
-        self.model.add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        self.models[1].add(tf.keras.layers.Convolution2D(64, (2,2), padding='same'))
+        self.models[1].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
         
-        self.model.add(tf.keras.layers.Convolution2D(64, (3,3), padding='same'))
+        self.models[1].add(tf.keras.layers.Convolution2D(64, (3,3), padding='same'))
 
         
-        self.model.add(tf.keras.layers.Convolution2D(64, (5,5), padding='same'))
-        self.model.add(tf.keras.layers.LeakyReLU(alpha=0.2))
-        self.model.add(tf.keras.layers.Dropout(0.3))
+        self.models[1].add(tf.keras.layers.Convolution2D(64, (5,5), padding='same'))
+        self.models[1].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[1].add(tf.keras.layers.Dropout(0.3))
         
-        self.model.add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None, padding="same"))
+        self.models[1].add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None, padding="same"))
         
-        self.model.add(tf.keras.layers.Convolution2D(128, (2,2), padding='same'))
-        self.model.add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        self.models[1].add(tf.keras.layers.Convolution2D(128, (2,2), padding='same'))
+        self.models[1].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
         
-        self.model.add(tf.keras.layers.Convolution2D(128, (3,3), padding='same'))
+        self.models[1].add(tf.keras.layers.Convolution2D(128, (3,3), padding='same'))
         
-        self.model.add(tf.keras.layers.Convolution2D(128, (5,5), padding='same'))
-        self.model.add(tf.keras.layers.LeakyReLU(alpha=0.2))
-        self.model.add(tf.keras.layers.Dropout(0.3))
+        self.models[1].add(tf.keras.layers.Convolution2D(128, (5,5), padding='same'))
+        self.models[1].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[1].add(tf.keras.layers.Dropout(0.3))
         
-        self.model.add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None, padding="same"))
+        self.models[1].add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None, padding="same"))
         
-        self.model.add(tf.keras.layers.Convolution2D(256, (2,2), padding='same'))
-        self.model.add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        self.models[1].add(tf.keras.layers.Convolution2D(256, (2,2), padding='same'))
+        self.models[1].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
         
-        self.model.add(tf.keras.layers.Convolution2D(256, (3,3), padding='same'))
+        self.models[1].add(tf.keras.layers.Convolution2D(256, (3,3), padding='same'))
 
         
-        self.model.add(tf.keras.layers.Convolution2D(256, (5,5), padding='same'))
-        self.model.add(tf.keras.layers.LeakyReLU(alpha=0.2))
-        self.model.add(tf.keras.layers.Dropout(0.3))
+        self.models[1].add(tf.keras.layers.Convolution2D(256, (5,5), padding='same'))
+        self.models[1].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[1].add(tf.keras.layers.Dropout(0.3))
         
-        self.model.add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None, padding="same"))
+        self.models[1].add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None, padding="same"))
         
-        self.model.add(tf.keras.layers.Convolution2D(512, (2,2), padding='same'))
-        self.model.add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        self.models[1].add(tf.keras.layers.Convolution2D(512, (2,2), padding='same'))
+        self.models[1].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
         
-        self.model.add(tf.keras.layers.Convolution2D(512, (3,3), padding='same'))
+        self.models[1].add(tf.keras.layers.Convolution2D(512, (3,3), padding='same'))
 
         
-        self.model.add(tf.keras.layers.Convolution2D(512, (5,5), padding='same'))
+        self.models[1].add(tf.keras.layers.Convolution2D(512, (5,5), padding='same'))
         
-        self.model.add(tf.keras.layers.Convolution2D(512, (7,7), padding='same'))
-        self.model.add(tf.keras.layers.LeakyReLU(alpha=0.2))
-        self.model.add(tf.keras.layers.Dropout(0.3))
+        self.models[1].add(tf.keras.layers.Convolution2D(512, (7,7), padding='same'))
+        self.models[1].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[1].add(tf.keras.layers.Dropout(0.3))
         
-        self.model.add(tf.keras.layers.Conv2DTranspose(512, (2,2), padding='same'))    
-        self.model.add(tf.keras.layers.LeakyReLU(alpha=0.2))
-        self.model.add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
-        self.model.add(tf.keras.layers.Dropout(0.3))
+        self.models[1].add(tf.keras.layers.Conv2DTranspose(512, (2,2), padding='same'))    
+        self.models[1].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[1].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        self.models[1].add(tf.keras.layers.Dropout(0.3))
         
-        self.model.add(tf.keras.layers.UpSampling2D(size=(2, 2), interpolation='nearest'))
+        self.models[1].add(tf.keras.layers.UpSampling2D(size=(2, 2), interpolation='nearest'))
         
-        self.model.add(tf.keras.layers.Conv2DTranspose(256, (2,2), padding='same'))    
-        self.model.add(tf.keras.layers.LeakyReLU(alpha=0.2))
-        self.model.add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
-        self.model.add(tf.keras.layers.Dropout(0.3))
+        self.models[1].add(tf.keras.layers.Conv2DTranspose(256, (2,2), padding='same'))    
+        self.models[1].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[1].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        self.models[1].add(tf.keras.layers.Dropout(0.3))
         
-        self.model.add(tf.keras.layers.UpSampling2D(size=(2, 2), interpolation='nearest'))
+        self.models[1].add(tf.keras.layers.UpSampling2D(size=(2, 2), interpolation='nearest'))
         
-        self.model.add(tf.keras.layers.Conv2DTranspose(128, (2,2), padding='same'))    
-        self.model.add(tf.keras.layers.LeakyReLU(alpha=0.2))
-        self.model.add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
-        self.model.add(tf.keras.layers.Dropout(0.3))
+        self.models[1].add(tf.keras.layers.Conv2DTranspose(128, (2,2), padding='same'))    
+        self.models[1].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[1].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        self.models[1].add(tf.keras.layers.Dropout(0.3))
         
-        self.model.add(tf.keras.layers.UpSampling2D(size=(2, 2), interpolation='nearest'))
+        self.models[1].add(tf.keras.layers.UpSampling2D(size=(2, 2), interpolation='nearest'))
         
-        self.model.add(tf.keras.layers.Conv2DTranspose(64, (2,2), padding='same'))    
-        self.model.add(tf.keras.layers.LeakyReLU(alpha=0.2))
-        self.model.add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
-        self.model.add(tf.keras.layers.Dropout(0.3))
+        self.models[1].add(tf.keras.layers.Conv2DTranspose(64, (2,2), padding='same'))    
+        self.models[1].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[1].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        self.models[1].add(tf.keras.layers.Dropout(0.3))
         
-        self.model.add(tf.keras.layers.UpSampling2D(size=(2, 2), interpolation='nearest'))
+        self.models[1].add(tf.keras.layers.UpSampling2D(size=(2, 2), interpolation='nearest'))
         
         
-        self.model.add(tf.keras.layers.Conv2DTranspose(32, (2,2), padding='same'))    
-        self.model.add(tf.keras.layers.LeakyReLU(alpha=0.2))
-        self.model.add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
-        self.model.add(tf.keras.layers.Dropout(0.3))
+        self.models[1].add(tf.keras.layers.Conv2DTranspose(32, (2,2), padding='same'))    
+        self.models[1].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[1].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        self.models[1].add(tf.keras.layers.Dropout(0.3))
         
-        self.model.add(tf.keras.layers.UpSampling2D(size=(2, 2), interpolation='nearest'))
+        self.models[1].add(tf.keras.layers.UpSampling2D(size=(2, 2), interpolation='nearest'))
         
-        self.model.add(tf.keras.layers.Conv2DTranspose(1, (2,2), padding='same',activation='sigmoid'))            
+        self.models[1].add(tf.keras.layers.Conv2DTranspose(1, (2,2), padding='same',activation='sigmoid'))
+
+    def __setModel2(self,input_shape=(256,256,3)):
+        self.models[2] = tf.keras.models.Sequential()            
+        
+        self.models[2].add(tf.keras.layers.Convolution2D(16, (3,3), padding='same',input_shape=input_shape))        
+        self.models[2].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        
+        
+        self.models[2].add(tf.keras.layers.Convolution2D(16, (2,2), padding='same'))
+        self.models[2].add(tf.keras.layers.LeakyReLU(alpha=0.2))        
+        self.models[2].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[2].add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None, padding="same"))
+        
+        self.models[2].add(tf.keras.layers.Convolution2D(32, (3,3), padding='same'))        
+        self.models[2].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))        
+        
+        self.models[2].add(tf.keras.layers.Convolution2D(32, (5,5), padding='same'))
+        self.models[2].add(tf.keras.layers.LeakyReLU(alpha=0.2))        
+        self.models[2].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[2].add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None, padding="same"))
+        
+        self.models[2].add(tf.keras.layers.Convolution2D(64, (3,3), padding='same'))
+        self.models[2].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        
+        self.models[2].add(tf.keras.layers.Convolution2D(64, (5,5), padding='same'))
+
+        
+        self.models[2].add(tf.keras.layers.Convolution2D(64, (7,7), padding='same'))
+        self.models[2].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[2].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[2].add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None, padding="same"))
+        
+        self.models[2].add(tf.keras.layers.Convolution2D(128, (2,2), padding='same'))
+        self.models[2].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        
+        self.models[2].add(tf.keras.layers.Convolution2D(128, (3,3), padding='same'))
+        
+        self.models[2].add(tf.keras.layers.Convolution2D(128, (5,5), padding='same'))
+        self.models[2].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[2].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[2].add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None, padding="same"))
+        
+        self.models[2].add(tf.keras.layers.Convolution2D(256, (2,2), padding='same'))
+        self.models[2].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        
+        self.models[2].add(tf.keras.layers.Convolution2D(256, (3,3), padding='same'))
+
+        
+        self.models[2].add(tf.keras.layers.Convolution2D(256, (5,5), padding='same'))
+        self.models[2].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[2].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[2].add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None, padding="same"))
+        
+        self.models[2].add(tf.keras.layers.Convolution2D(512, (2,2), padding='same'))
+        self.models[2].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        
+        self.models[2].add(tf.keras.layers.Convolution2D(512, (3,3), padding='same'))
+
+        
+        self.models[2].add(tf.keras.layers.Convolution2D(512, (5,5), padding='same'))
+        
+        self.models[2].add(tf.keras.layers.Convolution2D(512, (7,7), padding='same'))
+        self.models[2].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[2].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[2].add(tf.keras.layers.Conv2DTranspose(512, (2,2), padding='same'))    
+        self.models[2].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[2].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        self.models[2].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[2].add(tf.keras.layers.UpSampling2D(size=(2, 2), interpolation='nearest'))
+        
+        self.models[2].add(tf.keras.layers.Conv2DTranspose(256, (2,2), padding='same'))    
+        self.models[2].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[2].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        self.models[2].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[2].add(tf.keras.layers.UpSampling2D(size=(2, 2), interpolation='nearest'))
+        
+        self.models[2].add(tf.keras.layers.Conv2DTranspose(128, (2,2), padding='same'))    
+        self.models[2].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[2].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        self.models[2].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[2].add(tf.keras.layers.UpSampling2D(size=(2, 2), interpolation='nearest'))
+        
+        self.models[2].add(tf.keras.layers.Conv2DTranspose(64, (2,2), padding='same'))    
+        self.models[2].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[2].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        self.models[2].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[2].add(tf.keras.layers.UpSampling2D(size=(2, 2), interpolation='nearest'))
+        
+        
+        self.models[2].add(tf.keras.layers.Conv2DTranspose(32, (2,2), padding='same'))    
+        self.models[2].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[2].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        self.models[2].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[2].add(tf.keras.layers.UpSampling2D(size=(2, 2), interpolation='nearest'))
+        
+        self.models[2].add(tf.keras.layers.Conv2DTranspose(1, (2,2), padding='same',activation='sigmoid'))            
+        
+    def __setModel3(self,input_shape=(256,256,3)):
+        self.models[3] = tf.keras.models.Sequential()            
+        
+        self.models[3].add(tf.keras.layers.Convolution2D(16, (3,3), padding='same',input_shape=input_shape))        
+        self.models[3].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        
+        
+        self.models[3].add(tf.keras.layers.Convolution2D(16, (2,2), padding='same'))
+        self.models[3].add(tf.keras.layers.LeakyReLU(alpha=0.2))        
+        self.models[3].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[3].add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None, padding="same"))
+        
+        self.models[3].add(tf.keras.layers.Convolution2D(32, (3,3), padding='same'))        
+        self.models[3].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))        
+        
+        self.models[3].add(tf.keras.layers.Convolution2D(32, (2,2), padding='same'))
+        self.models[3].add(tf.keras.layers.LeakyReLU(alpha=0.2))        
+        self.models[3].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[3].add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None, padding="same"))
+        
+        self.models[3].add(tf.keras.layers.Convolution2D(64, (5,5), padding='same'))
+        self.models[3].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        
+        self.models[3].add(tf.keras.layers.Convolution2D(64, (3,3), padding='same'))
+
+        
+        self.models[3].add(tf.keras.layers.Convolution2D(64, (2,2), padding='same'))
+        self.models[3].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[3].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[3].add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None, padding="same"))
+        
+        self.models[3].add(tf.keras.layers.Convolution2D(128, (5,5), padding='same'))
+        self.models[3].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        
+        self.models[3].add(tf.keras.layers.Convolution2D(128, (3,3), padding='same'))
+        
+        self.models[3].add(tf.keras.layers.Convolution2D(128, (2,2), padding='same'))
+        self.models[3].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[3].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[3].add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None, padding="same"))
+        
+        self.models[3].add(tf.keras.layers.Convolution2D(256, (5,5), padding='same'))
+        self.models[3].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        
+        self.models[3].add(tf.keras.layers.Convolution2D(256, (3,3), padding='same'))
+
+        
+        self.models[3].add(tf.keras.layers.Convolution2D(256, (2,2), padding='same'))
+        self.models[3].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[3].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[3].add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None, padding="same"))
+        
+        self.models[3].add(tf.keras.layers.Convolution2D(512, (7,7), padding='same'))
+        self.models[3].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        
+        self.models[3].add(tf.keras.layers.Convolution2D(512, (5,5), padding='same'))
+
+        
+        self.models[3].add(tf.keras.layers.Convolution2D(512, (3,3), padding='same'))
+        
+        self.models[3].add(tf.keras.layers.Convolution2D(512, (2,2), padding='same'))
+        self.models[3].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[3].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[3].add(tf.keras.layers.Conv2DTranspose(512, (2,2), padding='same'))    
+        self.models[3].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[3].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        self.models[3].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[3].add(tf.keras.layers.UpSampling2D(size=(2, 2), interpolation='nearest'))
+        
+        self.models[3].add(tf.keras.layers.Conv2DTranspose(256, (2,2), padding='same'))    
+        self.models[3].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[3].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        self.models[3].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[3].add(tf.keras.layers.UpSampling2D(size=(2, 2), interpolation='nearest'))
+        
+        self.models[3].add(tf.keras.layers.Conv2DTranspose(128, (2,2), padding='same'))    
+        self.models[3].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[3].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        self.models[3].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[3].add(tf.keras.layers.UpSampling2D(size=(2, 2), interpolation='nearest'))
+        
+        self.models[3].add(tf.keras.layers.Conv2DTranspose(64, (2,2), padding='same'))    
+        self.models[3].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[3].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        self.models[3].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[3].add(tf.keras.layers.UpSampling2D(size=(2, 2), interpolation='nearest'))
+        
+        
+        self.models[3].add(tf.keras.layers.Conv2DTranspose(32, (2,2), padding='same'))    
+        self.models[3].add(tf.keras.layers.LeakyReLU(alpha=0.2))
+        self.models[3].add(tf.keras.layers.BatchNormalization(momentum=0.15, axis=-1))
+        self.models[3].add(tf.keras.layers.Dropout(0.3))
+        
+        self.models[3].add(tf.keras.layers.UpSampling2D(size=(2, 2), interpolation='nearest'))
+        
+        self.models[3].add(tf.keras.layers.Conv2DTranspose(1, (2,2), padding='same',activation='sigmoid'))            
     '''
     compileModel:
         compiles the setted model
@@ -144,7 +384,8 @@ class SegmentML:
             None
     '''
     def compileModel(self):
-        self.model.compile(optimizer='Nadam', loss="mean_absolute_error", metrics=['accuracy'])
+        for model in self.models:
+            self.models[model].compile(optimizer='Nadam', loss="mean_absolute_error", metrics=['accuracy'])        
         
     
     '''
@@ -162,13 +403,38 @@ class SegmentML:
             batch_size:int
                 batch size for training
     '''
-    def fitModel(self,x_train,y_train,x_test,y_test,batch_size:int=10,epochs=25):
-        self.history=self.model.fit(x=x_train,y=y_train,validation_data = (x_test,y_test),epochs = epochs,workers=6,batch_size=batch_size)
+    def fitModel(self,x_train,y_train,x_test,y_test,model,batch_size:int=10,epochs=25):
+        self.models[model].fit(x=x_train,y=y_train,validation_data = (x_test,y_test),epochs = epochs,workers=6,batch_size=batch_size)
         
-    def preloadData(self,XTrainPath,YTrainPath,XTestPath,YTestPath,n=5):
+    
+        
+            
+        
+    '''
+    preloadData:
+        preloads data in the background in parallel using threading
+        Args:
+            xTrainPath:str
+                training path for X Train set
+            YTrainPath:str
+                training path for Y Train set
+            XTestPath:str
+                training path for X Test set
+            YTestPath:str
+                training path for Y Test set
+            n:int
+                number of random images per folder to take in the set
+    '''
+    def preloadData(self,XTrainPath:str,YTrainPath:str,XTestPath:str,YTestPath:str,n:int=5):        
         self.preLoadTrainThread,self.preLoadTrainData=iproc.getImageFromFolderAsync(XTrainPath,YTrainPath,n)        
         self.preLoadTestThread,self.preLoadTestData=iproc.getImageFromFolderAsync(XTestPath,YTestPath,n)
         
+    '''
+    loadFromPreLoad:
+        waits for data to be preloaded and then loads data into numpy array suitable for model training
+        Args:
+            None
+    '''
     def loadFromPreload(self):
         self.preLoadTrainThread.join()
         self.preLoadTestThread.join()
@@ -184,23 +450,55 @@ class SegmentML:
         self.y_train/=255
         self.y_test/=255
         
-    def trainBatchWise(self,batches=10):
-        self.preloadData('data/train/manseg/image/Tomato','data/train/manseg/mask/Tomato','data/test/manseg/image/Tomato','data/test/manseg/mask/Tomato',5)        
-        for i in range(batches):
-            self.loadFromPreload()
-            self.preloadData('data/train/manseg/image/Tomato','data/train/manseg/mask/Tomato','data/test/manseg/image/Tomato','data/test/manseg/mask/Tomato',5)      
+    '''
+    trainBatchWise:
+        train model batch wise, use this for huge data which cannot be simulataneously loaded into the batch
+        Args:
+            XTrainPath:str
+                path for training features
+            YTrainPath:str
+                path for training labels
+            XTestPath:str
+                path for testing features
+            YTestPath:str
+                path for testing labels
+            batches:int=10
+                total random batches to be trained
+            imagePerFolder:int=5
+                images per folder to be taken
+            epochs:int=10
+                epochs per batch for training
+            saveAfterTrain:bool=True
+                Boolean check to save model after training
+            deleteAfterTrain:bool=True
+                Boolean check to delete the model after training and saving
+        Return:
+            None
             
-            self.fitModel(self.x_train, self.y_train, self.x_test, self.y_test)
+    '''
+    def trainBatchWise(self,XTrainPath:str,YTrainPath:str,XTestPath:str,YTestPath:str,batches:int=10,imagePerFolder:int=5,epochs:int=10,saveAfterTrain:bool=True,deleteAfterTrain:bool=True):
+        self.preloadData(XTrainPath,YTrainPath,XTestPath,YTestPath,imagePerFolder)
+        for model in self.models:            
+            print('Training model',model)  
+            for i in range(batches):
+                print('Batch',i+1,'of',batches)
+                self.loadFromPreload()
+                self.preloadData(XTrainPath,YTrainPath,XTestPath,YTestPath,imagePerFolder)                      
+                self.fitModel(self.x_train, self.y_train, self.x_test, self.y_test,model,10,epochs)
+                            
+            if saveAfterTrain and self.modelSavePath != '':
+                iproc.createPathIfNotExist(self.modelSavePath)
+                self.models[model].save(self.modelSavePath+'/'+str(model)+'.h5')
+            
+            if deleteAfterTrain:
+                self.models[model]=None
  
-def custom_loss(y_true, y_pred): 
-    y_true=tf.cast(y_true, tf.float32)    
-    return tf.reduce_mean(tf.reduce_mean(tf.reduce_mean(tf.reduce_mean(tf.abs(tf.subtract(y_true,y_pred)),1),1),1),0)
 
 if __name__=='__main__':
-    test=SegmentML()
-    test.setModel()
+    test=SegmentML()    
     test.compileModel()
-    test.trainBatchWise()
+    test.modelSavePath='model/test'
+    test.trainBatchWise('data/train/manseg/image/Tomato','data/train/manseg/mask/Tomato','data/test/manseg/image/Tomato','data/test/manseg/mask/Tomato')
     
     
     

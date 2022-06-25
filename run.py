@@ -7,6 +7,7 @@ Created on Fri May 27 17:23:19 2022
 import tkinter as tk
 import iproc
 import threading
+import ml
 from PIL import ImageTk, Image
 import numpy as np
 '''
@@ -35,7 +36,7 @@ class GUI(tk.Tk):
         #Label to show status
         self.status = tk.StringVar()
         self.UIe['status'] = tk.Label(self,textvariable= self.status)
-        self.UIe['status'].grid(row=0,column=0,columnspan=2)
+        self.UIe['status'].grid(row=0,column=0,columnspan=3)
         self.status.set("Choose what to do")
         
         #Buttons to switch frames
@@ -348,9 +349,146 @@ class ManualSegmentFrame(tk.Frame):
         except ValueError:
             self.status.set('BatchN and AugmentN must be an integer') 
             return '',0,0
+        
+        
 class TrainModelFrame(tk.Frame):
     def __init__(self,master):
         tk.Frame.__init__(self,master)
+        self.status = master.status
+        
+        self.UIe={}
+        
+        #Getting the data path from the user and setting it onto the UI
+        self.UIe['trainFeaturePathLabel'] = tk.Label(self, text = 'Train Features Path:')  
+        self.UIe['trainFeaturePath'] = tk.Text(self,height = 1,width = 20) 
+        self.UIe['trainFeaturePathLabel'].grid(row=0,column=0)
+        self.UIe['trainFeaturePath'].grid(row=0,column=1)
+        
+        self.UIe['trainLabelPathLabel'] = tk.Label(self, text = 'Train Labels Path:')  
+        self.UIe['trainLabelPath'] = tk.Text(self,height = 1,width = 20) 
+        self.UIe['trainLabelPathLabel'].grid(row=1,column=0)
+        self.UIe['trainLabelPath'].grid(row=1,column=1)
+        
+        self.UIe['testFeaturePathLabel'] = tk.Label(self, text = 'Test Features Path:')  
+        self.UIe['testFeaturePath'] = tk.Text(self,height = 1,width = 20) 
+        self.UIe['testFeaturePathLabel'].grid(row=2,column=0)
+        self.UIe['testFeaturePath'].grid(row=2,column=1)
+        
+        self.UIe['testLabelPathLabel'] = tk.Label(self, text = 'Test Labels Path:')  
+        self.UIe['testLabelPath'] = tk.Text(self,height = 1,width = 20) 
+        self.UIe['testLabelPathLabel'].grid(row=3,column=0)
+        self.UIe['testLabelPath'].grid(row=3,column=1)
+        
+        self.UIe['modelSavePathLabel'] = tk.Label(self, text = 'Model Save Path:')  
+        self.UIe['modelSavePath'] = tk.Text(self,height = 1,width = 20) 
+        self.UIe['modelSavePathLabel'].grid(row=4,column=0)
+        self.UIe['modelSavePath'].grid(row=4,column=1)
+        
+        self.UIe['epochsLabel'] = tk.Label(self, text = 'Epochs:')  
+        self.UIe['epochs'] = tk.Text(self,height = 1,width = 20) 
+        self.UIe['epochsLabel'].grid(row=5,column=0)
+        self.UIe['epochs'].grid(row=5,column=1)
+        
+        self.UIe['batchSizeLabel'] = tk.Label(self, text = 'Batches:')  
+        self.UIe['batchSize'] = tk.Text(self,height = 1,width = 20) 
+        self.UIe['batchSizeLabel'].grid(row=6,column=0)
+        self.UIe['batchSize'].grid(row=6,column=1)
+        
+        self.UIe['imageNLabel'] = tk.Label(self, text = 'Image per folder:')  
+        self.UIe['imageN'] = tk.Text(self,height = 1,width = 20) 
+        self.UIe['imageNLabel'].grid(row=7,column=0)
+        self.UIe['imageN'].grid(row=7,column=1)
+        
+        self.UIe['startFromLabel'] = tk.Label(self, text = 'Start from:')  
+        self.UIe['startFrom'] = tk.Text(self,height = 1,width = 20) 
+        self.UIe['startFromLabel'].grid(row=8,column=0)
+        self.UIe['startFrom'].grid(row=8,column=1)
+        #Drop down list to select the type of the model
+        self.modelType=tk.StringVar()
+        self.modelType.set("Select model")
+        self.UIe['modelTypeLabel'] = tk.Label(self, text = 'Model Type:')  
+        self.UIe['modelType'] = tk.OptionMenu(self, self.modelType,'Segmentation Model')
+        self.UIe['modelTypeLabel'].grid(row=9,column=0)
+        self.UIe['modelType'].grid(row=9,column=1)
+        
+        #UI to show count image button
+        self.UIe['trainFull'] = tk.Button(self,text = "Train All",command = self.__trainAll)
+        self.UIe['trainFolder'] = tk.Button(self,text = "Train Folder",command = self.__trainFolder)
+        self.UIe['trainFull'].grid(row=10,column=0)
+        self.UIe['trainFolder'].grid(row=10,column=1)
+        
+    def __trainAll(self):
+        trainFeaturePath,trainLabelPath,testFeaturePath,testLabelPath,modelSavePath,epochs,batchN,imageN,startFrom=self.__getVars()
+        if trainFeaturePath!='':
+            folders=iproc.getFolders(trainFeaturePath)
+            for folder in folders:
+                if startFrom<=0:
+                    print('Training',folder)
+                    self.__trainFolder(folder)
+                else:
+                    print('Skipping',folder)
+                    startFrom-=1
+                
+    def __trainFolder(self,takePath=''):
+        
+        trainFeaturePath,trainLabelPath,testFeaturePath,testLabelPath,modelSavePath,epochs,batchN,imageN,startFrom=self.__getVars()
+        if takePath!='':
+            trainFeaturePath+='/'+takePath
+            trainLabelPath+='/'+takePath
+            testFeaturePath+='/'+takePath
+            testLabelPath+='/'+takePath
+        if trainFeaturePath!='':
+            modelSavePathFinal=modelSavePath
+            if takePath!='':
+                modelSavePathFinal=modelSavePath+'/'+takePath
+            self.__train(trainFeaturePath,trainLabelPath,testFeaturePath,testLabelPath,batchN,imageN,modelSavePathFinal)
+            
+                   
+    
+    def __getVars(self):
+        trainFeaturePath=self.UIe['trainFeaturePath'].get(1.0, "end-1c")
+        trainLabelPath=self.UIe['trainLabelPath'].get(1.0, "end-1c")
+        testFeaturePath=self.UIe['testFeaturePath'].get(1.0, "end-1c")
+        testLabelPath=self.UIe['testLabelPath'].get(1.0, "end-1c")
+        modelSavePath=self.UIe['modelSavePath'].get(1.0, "end-1c")
+        epochs=self.UIe['epochs'].get(1.0, "end-1c")
+        batchN=self.UIe['batchSize'].get(1.0, "end-1c")
+        imageN=self.UIe['imageN'].get(1.0, "end-1c")
+        startFrom=self.UIe['startFrom'].get(1.0, "end-1c")
+        if len(trainFeaturePath)>0 and len(trainLabelPath)>0 and len(testFeaturePath)>0 and len(testLabelPath)>0 and len(modelSavePath)>0:
+            try:
+                if len(epochs)<=0:
+                    epochs=10
+                    
+                if len(batchN)<=0:
+                    batchN=25    
+                                        
+                if len(imageN)<=0:
+                    imageN=5
+                    
+                if len(startFrom)<=0:
+                    startFrom=0
+                    
+                epochs=int(epochs)
+                batchN=int(batchN)
+                imageN=int(imageN)
+                startFrom=int(startFrom)
+                return trainFeaturePath,trainLabelPath,testFeaturePath,testLabelPath,modelSavePath,epochs,batchN,imageN,startFrom
+            except:
+                self.status.set('Epochs, Batch size, Image per Folder and Start From must be an integer') 
+                return '','','','','',0,0,0,0
+        else:            
+            self.status.set('Enter all the fields')
+            return '','','','','',0,0,0,0
+    
+    def __train(self,trainFeaturePath,trainLabelPath,testFeaturePath,testLabelPath,batchN,imageN,modelSavePath=''):
+        self.mlTrain=ml.SegmentML()        
+        self.mlTrain.compileModel()
+        if modelSavePath!='':
+            self.mlTrain.modelSavePath=modelSavePath
+        self.mlTrain.trainBatchWise(trainFeaturePath,trainLabelPath,testFeaturePath,testLabelPath,batchN,imageN)
+        
+        
         
 if __name__=='__main__':
     gui=GUI()    
