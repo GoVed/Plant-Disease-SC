@@ -298,14 +298,17 @@ saveImage:
             path:str       Save path
             name:Str       Save Name
 '''
-def saveImage(img,path:str,name:str,changeToBGR=True):
+def saveImage(img,path:str,name:str,changeToBGR=True,isGray=False):
     #Check if path exists or creats it
     createPathIfNotExist(path)
     #Write image to the path    
+    img=np.float32(img) 
+    if isGray:               
+        img=cv2.cvtColor(img,cv2.COLOR_GRAY2BGR)
     if changeToBGR:
-        cv2.imwrite(path+'\\'+name, cv2.cvtColor(img,cv2.COLOR_RGB2BGR))
-    else:
-        cv2.imwrite(path+'\\'+name, img)
+        img=cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
+    
+    cv2.imwrite(path+'\\'+name, img)
 
 '''
 getImageFromFolderAsync:
@@ -360,6 +363,61 @@ getFolders:
 '''
 def getFolders(path):
     return [f.name for f in os.scandir(path) if f.is_dir()]
+
+'''
+binaryProb:
+    returns boolean for required probability
+    Args:
+        ratio:float
+            the ratio at which binary threshold is needed
+    Return:
+        binary Prob:boolean
+            gives a random binary number with the inputted ratio
+'''
+def binaryProb(ratio:float):
+    return random.random()<ratio
+
+
+'''
+removeNoiseMask:
+    removes noise from the mask like small holes or fills on the edges
+    Args:
+        mask:ndarry
+            the raw mask on which the filter is needed
+    Return:
+        mask:ndarry
+            the filtered mask after removing the noise
+'''
+def removeNoiseMask(mask):
+    mask=np.float32(mask) 
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel=np.ones((8,8),dtype=np.uint8))
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
+    mask = cv2.morphologyEx(mask,cv2.MORPH_OPEN,kernel)
+    return mask
+
+
+'''
+fillMask
+'''
+def fill_mask(mask):
+    out=ndimage.binary_fill_holes(mask)
+    return out.astype(np.int32())
+
+'''
+checkIfFileExist:
+    CHecks if the file exists in the given list
+    Args:
+        paths:list
+            the list of string which needs to be checked
+    Return:
+        exist?:bool
+            if any on the path in the list exists, it returns True
+'''
+def checkIfFileExist(paths):
+    for path in paths:
+        if Path(path).is_file():
+            return True
+    return False
 
 if __name__=='__main__':
     

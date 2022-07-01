@@ -11,10 +11,14 @@ import ml
 from PIL import ImageTk, Image
 import numpy as np
 '''
-Class to make Graphical User Interface
-
 Credits:
     GUI frame logic     :   Stevoisiak [https://stackoverflow.com/users/3357935/stevoisiak]
+'''
+
+    
+'''
+Class to make Graphical User Interface
+
     
 GUI:    Makes parent GUI and opens train test split tab
     None
@@ -36,13 +40,14 @@ class GUI(tk.Tk):
         #Label to show status
         self.status = tk.StringVar()
         self.UIe['status'] = tk.Label(self,textvariable= self.status)
-        self.UIe['status'].grid(row=0,column=0,columnspan=3)
+        self.UIe['status'].grid(row=0,column=0,columnspan=4)
         self.status.set("Choose what to do")
         
         #Buttons to switch frames
         self.UIe['setTrainTestFrame']=tk.Button(self,text='Split Dataset',command=lambda:self.switch_frame(TrainTestFrame)).grid(row=1,column=0)
-        self.UIe['setTrainTestFrame']=tk.Button(self,text='Manually Segment',command=lambda:self.switch_frame(ManualSegmentFrame)).grid(row=1,column=1)
-        self.UIe['setModelTraining']=tk.Button(self,text='Train Model',command=lambda:self.switch_frame(TrainModelFrame)).grid(row=1,column=2)
+        self.UIe['setManuallySegment']=tk.Button(self,text='Manually Segment',command=lambda:self.switch_frame(ManualSegmentFrame)).grid(row=1,column=1)
+        self.UIe['setLoadSegmented']=tk.Button(self,text='Load Segmented',command=lambda:self.switch_frame(LoadSegmentFrame)).grid(row=1,column=2)
+        self.UIe['setModelTraining']=tk.Button(self,text='Train Model',command=lambda:self.switch_frame(TrainModelFrame)).grid(row=1,column=3)
         #Set initial frame to Train Test Frame
         self.switch_frame(TrainTestFrame)
         
@@ -59,8 +64,11 @@ class GUI(tk.Tk):
         
         
 '''
-TrainTestFrame:     Makes the frame for splitting dataset into train and test dataset
-    None
+TrainTestFrame:     
+    Makes the frame for splitting dataset into train and test dataset
+    Args:
+        master:
+            Main tkinter window to hold the frame
 '''      
 class TrainTestFrame(tk.Frame):
     #Constructor
@@ -122,8 +130,11 @@ class TrainTestFrame(tk.Frame):
             self.status.set('Split ratio must be a number')      
 
 '''      
-ManualSegmentFrame:     To manually segment required images for training segmentation model
-    None
+ManualSegmentFrame:     
+    To manually segment required images for training segmentation model
+    Args:
+        master:
+            Main tkinter window to hold the frame
 '''      
 class ManualSegmentFrame(tk.Frame):
     def __init__(self,master):
@@ -350,7 +361,120 @@ class ManualSegmentFrame(tk.Frame):
             self.status.set('BatchN and AugmentN must be an integer') 
             return '',0,0
         
+class LoadSegmentFrame(tk.Frame):
+    def __init__(self,master):
+        tk.Frame.__init__(self,master)
+        self.status = master.status
         
+        self.UIe={}
+        
+        #Getting the data path from the user and setting it onto the UI
+        self.UIe['pathLabel'] = tk.Label(self, text = 'Path:')  
+        self.UIe['path'] = tk.Text(self,height = 1,width = 20) 
+        self.UIe['pathLabel'].grid(row=0,column=0)
+        self.UIe['path'].grid(row=0,column=1)
+        
+        self.UIe['path'].insert(tk.INSERT,'data/color')
+        
+        
+        #UI to show batch label and input
+        self.UIe['segmentedPathLabel'] = tk.Label(self, text = 'Segmented Path:')  
+        self.UIe['segmentedPath'] = tk.Text(self,height = 1,width = 20) 
+        self.UIe['segmentedPathLabel'].grid(row=1,column=0)
+        self.UIe['segmentedPath'].grid(row=1,column=1)
+        
+        self.UIe['segmentedPath'].insert(tk.INSERT,'data/segmented')
+        
+
+        self.UIe['segmentedPathSuffixLabel'] = tk.Label(self, text = 'Segmented Path Suffix:')  
+        self.UIe['segmentedPathSuffix'] = tk.Text(self,height = 1,width = 20) 
+        self.UIe['segmentedPathSuffixLabel'].grid(row=2,column=0)
+        self.UIe['segmentedPathSuffix'].grid(row=2,column=1)
+        
+        self.UIe['segmentedPathSuffix'].insert(tk.INSERT,'_final_masked')
+        
+        #UI to show save path label and input
+        self.UIe['savePathTrainLabel'] = tk.Label(self, text = 'Save Path (Train):')  
+        self.UIe['savePathTrain'] = tk.Text(self,height = 1,width = 20) 
+        self.UIe['savePathTrainLabel'].grid(row=3,column=0)
+        self.UIe['savePathTrain'].grid(row=3,column=1)
+        
+        self.UIe['savePathTrain'].insert(tk.INSERT,'data/train/manseg')
+        
+        self.UIe['savePathTestLabel'] = tk.Label(self, text = 'Save Path (Test):')  
+        self.UIe['savePathTest'] = tk.Text(self,height = 1,width = 20) 
+        self.UIe['savePathTestLabel'].grid(row=4,column=0)
+        self.UIe['savePathTest'].grid(row=4,column=1)
+        
+        self.UIe['savePathTest'].insert(tk.INSERT,'data/test/manseg')
+        
+        
+        #UI to show split ratio
+        self.UIe['splitRatioLabel'] = tk.Label(self, text = 'Split Ratio:')  
+        self.UIe['splitRatio'] = tk.Text(self,height = 1,width = 20) 
+        self.UIe['splitRatioLabel'].grid(row=5,column=0)
+        self.UIe['splitRatio'].grid(row=5,column=1)
+        
+        self.UIe['splitRatio'].insert(tk.INSERT,'0.7')
+        
+        #UI to show buttons
+        self.UIe['process'] = tk.Button(self,text = "Process",command = self.__process)
+        
+        self.UIe['process'].grid(row=6,column=0)
+        
+        
+    #To get the inputted values by the user
+    def __getVars(self):
+        path=self.UIe['path'].get(1.0, "end-1c")
+        segmentedPath=self.UIe['segmentedPath'].get(1.0, "end-1c")
+        segmentedPathSuffix=self.UIe['segmentedPathSuffix'].get(1.0, "end-1c")
+        savePathTrain=self.UIe['savePathTrain'].get(1.0, "end-1c")
+        savePathTest=self.UIe['savePathTest'].get(1.0, "end-1c")
+        try:                     
+            splitRatio=float(self.UIe['splitRatio'].get(1.0, "end-1c"))
+            return path,segmentedPath,segmentedPathSuffix,savePathTrain,savePathTest,splitRatio
+        except:
+            print('Split Ratio needs to be a number')
+            return'','','','','',0
+        
+    
+    def __process(self):
+        path,segmentedPath,segmentedPathSuffix,savePathTrain,savePathTest,splitRatio=self.__getVars()
+        data=iproc.Data(path=path,changeColor=False)
+        
+        def imgproc(img,relpath,name):
+            try:
+                fpath=segmentedPath+'/'+relpath+'/'+name[:name.rindex('.')]+segmentedPathSuffix+name[name.rindex('.'):]            
+                mask=iproc.getImage(fpath,(data.x,data.y),data.changeColor)
+                mask=np.sum(mask,axis=2)
+                mask[mask>5]=255
+                mask=iproc.removeNoiseMask(mask)
+                if not iproc.checkIfFileExist([savePathTrain+'/image/'+relpath+'/'+name,savePathTest+'/image/'+relpath+'/'+name]):
+                    print('Saving',savePathTrain+'/image/'+relpath+'/'+name)
+                    if iproc.binaryProb(splitRatio):
+                        iproc.saveImage(img, savePathTrain+'/image/'+relpath,name,changeToBGR=False)
+                        iproc.saveImage(mask, savePathTrain+'/mask/'+relpath,name,changeToBGR=False,isGray=True)
+                    else:
+                        iproc.saveImage(img, savePathTest+'/image/'+relpath,name,changeToBGR=False)
+                        iproc.saveImage(mask, savePathTest+'/mask/'+relpath,name,changeToBGR=False,isGray=True)
+                else:
+                    print('Skipping',savePathTrain+'/image/'+relpath+'/'+name)
+            except:
+                print(savePathTrain+'/image/'+relpath+'/'+name,'not saved')
+                
+        #Setting the thread    
+        thread=threading.Thread(target=data.proc,args=({'func':imgproc,'loadImg':True},))
+        thread.setDaemon(True)
+        thread.start() 
+        
+        
+'''
+TrainModelFrame:
+    Frame to hold the train model tab
+    Args:
+        master:
+            Main tkinter window to hold the frame
+'''
 class TrainModelFrame(tk.Frame):
     def __init__(self,master):
         tk.Frame.__init__(self,master)
@@ -364,26 +488,36 @@ class TrainModelFrame(tk.Frame):
         self.UIe['trainFeaturePathLabel'].grid(row=0,column=0)
         self.UIe['trainFeaturePath'].grid(row=0,column=1)
         
+        self.UIe['trainFeaturePath'].insert(tk.INSERT,'data/train/manseg/image')
+        
         self.UIe['trainLabelPathLabel'] = tk.Label(self, text = 'Train Labels Path:')  
         self.UIe['trainLabelPath'] = tk.Text(self,height = 1,width = 20) 
         self.UIe['trainLabelPathLabel'].grid(row=1,column=0)
         self.UIe['trainLabelPath'].grid(row=1,column=1)
+        
+        self.UIe['trainLabelPath'].insert(tk.INSERT,'data/train/manseg/mask')
         
         self.UIe['testFeaturePathLabel'] = tk.Label(self, text = 'Test Features Path:')  
         self.UIe['testFeaturePath'] = tk.Text(self,height = 1,width = 20) 
         self.UIe['testFeaturePathLabel'].grid(row=2,column=0)
         self.UIe['testFeaturePath'].grid(row=2,column=1)
         
+        self.UIe['testFeaturePath'].insert(tk.INSERT,'data/test/manseg/image')
+
         self.UIe['testLabelPathLabel'] = tk.Label(self, text = 'Test Labels Path:')  
         self.UIe['testLabelPath'] = tk.Text(self,height = 1,width = 20) 
         self.UIe['testLabelPathLabel'].grid(row=3,column=0)
         self.UIe['testLabelPath'].grid(row=3,column=1)
+        
+        self.UIe['testLabelPath'].insert(tk.INSERT,'data/test/manseg/mask')
         
         self.UIe['modelSavePathLabel'] = tk.Label(self, text = 'Model Save Path:')  
         self.UIe['modelSavePath'] = tk.Text(self,height = 1,width = 20) 
         self.UIe['modelSavePathLabel'].grid(row=4,column=0)
         self.UIe['modelSavePath'].grid(row=4,column=1)
         
+        self.UIe['modelSavePath'].insert(tk.INSERT,'model/segment')
+
         self.UIe['epochsLabel'] = tk.Label(self, text = 'Epochs:')  
         self.UIe['epochs'] = tk.Text(self,height = 1,width = 20) 
         self.UIe['epochsLabel'].grid(row=5,column=0)
@@ -411,25 +545,57 @@ class TrainModelFrame(tk.Frame):
         self.UIe['modelTypeLabel'].grid(row=9,column=0)
         self.UIe['modelType'].grid(row=9,column=1)
         
-        #UI to show count image button
+        #UI to show buttons
         self.UIe['trainFull'] = tk.Button(self,text = "Train All",command = self.__trainAll)
         self.UIe['trainFolder'] = tk.Button(self,text = "Train Folder",command = self.__trainFolder)
         self.UIe['trainFull'].grid(row=10,column=0)
         self.UIe['trainFolder'].grid(row=10,column=1)
         
+    '''
+    __trainAll:
+        to train all the images folder wise
+        Args:
+            None
+        Return:
+            None
+    '''
     def __trainAll(self):
         trainFeaturePath,trainLabelPath,testFeaturePath,testLabelPath,modelSavePath,epochs,batchN,imageN,startFrom=self.__getVars()
+        acs=[]
+        vacs=[]
+        folders=None
         if trainFeaturePath!='':
             folders=iproc.getFolders(trainFeaturePath)
             for folder in folders:
                 if startFrom<=0:
                     print('Training',folder)
-                    self.__trainFolder(folder)
+                    ac,vac=self.__trainFolder(folder)
+                    acs.append(ac)
+                    vacs.append(vac)
                 else:
                     print('Skipping',folder)
                     startFrom-=1
-                
-    def __trainFolder(self,takePath=''):
+        with open(modelSavePath+'/acc.csv', 'w') as f:
+            f.writelines('Folder,Model,Batch,Epoch,Acc,Val Acc;')
+            
+            for i in range(len(folders)):
+                for j in range(len(acs[i])):
+                    for k in range(len(acs[i][j])):
+                        for l in range(len(acs[i][j][k])):
+                            f.writelines(folders[i]+','+str(j)+','+str(k)+','+str(l)+','+str(acs[i][j][k][l])+','+str(vacs[i][j][k][l])+'\n')
+                        
+                        
+                 
+    '''
+    __trainFolder:
+        to train a single folder
+        Args:
+            takePath:str
+                the path for model to be saved in
+        Return:
+            None
+    '''
+    def __trainFolder(self,takePath:str=''):
         
         trainFeaturePath,trainLabelPath,testFeaturePath,testLabelPath,modelSavePath,epochs,batchN,imageN,startFrom=self.__getVars()
         if takePath!='':
@@ -441,10 +607,35 @@ class TrainModelFrame(tk.Frame):
             modelSavePathFinal=modelSavePath
             if takePath!='':
                 modelSavePathFinal=modelSavePath+'/'+takePath
-            self.__train(trainFeaturePath,trainLabelPath,testFeaturePath,testLabelPath,batchN,imageN,modelSavePathFinal)
+            ac,vac=self.__train(trainFeaturePath,trainLabelPath,testFeaturePath,testLabelPath,batchN,imageN,modelSavePathFinal,epochs)
+        return ac,vac
             
                    
-    
+    '''
+    __getVars:
+        get the value from the text field in the UI
+        Args:
+            None
+        Return:
+            trainFeaturePath:str
+                path for training features
+            trainLabelPath:str
+                path for training labels
+            testFeaturePath:str
+                path for testing features
+            testLabelPath:str
+                path for testing labels
+            modelSavePath:str
+                path for sving the model
+            epochs:int
+                number of epochs to be trained for
+            batchN:int
+                number of batches for training
+            imageN:int
+                number of images per batch per folder
+            startFrom:int
+                for training multiple folders and start from a point skipping n folders for training
+    '''
     def __getVars(self):
         trainFeaturePath=self.UIe['trainFeaturePath'].get(1.0, "end-1c")
         trainLabelPath=self.UIe['trainLabelPath'].get(1.0, "end-1c")
@@ -481,13 +672,34 @@ class TrainModelFrame(tk.Frame):
             self.status.set('Enter all the fields')
             return '','','','','',0,0,0,0
     
-    def __train(self,trainFeaturePath,trainLabelPath,testFeaturePath,testLabelPath,batchN,imageN,modelSavePath=''):
+    '''
+    __train:
+        trains the model with given parameters
+        Args:
+            trainFeaturePath:str
+                path for training features
+            trainLabelPath:str
+                path for training labels
+            testFeaturePath:str
+                path for testing features
+            testLabelPath:str
+                path for testing labels
+            batchN:int
+                total random batches to be trained
+            imageN:int
+                images per folder to be taken  
+            modelSavePath:str=''
+                the path for medl to be saved at
+        Return:
+            None
+    '''
+    def __train(self,trainFeaturePath:str,trainLabelPath:str,testFeaturePath:str,testLabelPath:str,batchN:int,imageN:int,modelSavePath='',epochs:int=10):
         self.mlTrain=ml.SegmentML()        
         self.mlTrain.compileModel()
         if modelSavePath!='':
             self.mlTrain.modelSavePath=modelSavePath
-        self.mlTrain.trainBatchWise(trainFeaturePath,trainLabelPath,testFeaturePath,testLabelPath,batchN,imageN)
-        
+        ac,vac=self.mlTrain.trainBatchWise(trainFeaturePath,trainLabelPath,testFeaturePath,testLabelPath,batchN,imageN,epochs)
+        return ac,vac
         
         
 if __name__=='__main__':
