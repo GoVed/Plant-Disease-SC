@@ -245,6 +245,26 @@ def cv2_clipped_zoom(img, zoom_factor=0):
     assert result.shape[0] == height and result.shape[1] == width
     return result
 
+
+'''
+augment:
+    augments image and mask with different background to produce n images
+    Args:
+        img:ndarry
+            img to be augmented
+        mask:ndarry
+            mask for the respective image needed to seperate foreground and replace background
+        path:str
+            path where the background images are stores, chooses a random image from the folder
+        rotate:bool
+            boolean check to rotate image while augmentation
+        zoom:bool
+            boolean check to zoom image while augmentation
+        bg:bool
+            boolean check to change background from the given path
+        n:int
+            number of augmented images that needed to be produced
+'''
 def augment(img,mask,path='BGseg/',rotate=True,zoom=True,bg=True,n=5):
     
     
