@@ -439,6 +439,22 @@ def checkIfFileExist(paths):
             return True
     return False
 
+
+
+@nb.njit
+def swmad(imgs,group_size=5):
+    new=np.zeros_like(imgs)
+    for img in range(np.shape(imgs)[0]):
+        for i in range(group_size,np.shape(imgs)[1]):        
+            for j in range(group_size,np.shape(imgs)[2]):   
+                try:
+                    new[img,i,j,0]=abs(imgs[img,i,j,0]-np.mean(imgs[img,i-group_size:i+group_size,j-group_size:j+group_size,0]))
+                    new[img,i,j,1]=abs(imgs[img,i,j,1]-np.mean(imgs[img,i-group_size:i+group_size,j-group_size:j+group_size,1]))
+                    new[img,i,j,2]=abs(imgs[img,i,j,2]-np.mean(imgs[img,i-group_size:i+group_size,j-group_size:j+group_size,2]))
+                except:
+                    pass                
+    return new
+
 if __name__=='__main__':
     
     print('Nice run!')

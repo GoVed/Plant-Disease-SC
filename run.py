@@ -47,7 +47,9 @@ class GUI(tk.Tk):
         self.UIe['setTrainTestFrame']=tk.Button(self,text='Split Dataset',command=lambda:self.switch_frame(TrainTestFrame)).grid(row=1,column=0)
         self.UIe['setManuallySegment']=tk.Button(self,text='Manually Segment',command=lambda:self.switch_frame(ManualSegmentFrame)).grid(row=1,column=1)
         self.UIe['setLoadSegmented']=tk.Button(self,text='Load Segmented',command=lambda:self.switch_frame(LoadSegmentFrame)).grid(row=1,column=2)
-        self.UIe['setModelTraining']=tk.Button(self,text='Train Model',command=lambda:self.switch_frame(TrainModelFrame)).grid(row=1,column=3)
+        self.UIe['setModelTraining']=tk.Button(self,text='Train Model',command=lambda:self.switch_frame(TrainModelFrame)).grid(row=2,column=0)
+        self.UIe['setModelTraining']=tk.Button(self,text='Train Model',command=lambda:self.switch_frame(SWMADFrame)).grid(row=2,column=1)
+        
         #Set initial frame to Train Test Frame
         self.switch_frame(TrainTestFrame)
         
@@ -60,7 +62,7 @@ class GUI(tk.Tk):
         if self._frame is not None:
             self._frame.destroy()
         self._frame=frame(self)
-        self._frame.grid(row=2,column=0,columnspan=3)
+        self._frame.grid(row=3,column=0,columnspan=3)
         
         
 '''
@@ -700,7 +702,13 @@ class TrainModelFrame(tk.Frame):
             self.mlTrain.modelSavePath=modelSavePath
         ac,vac=self.mlTrain.trainBatchWise(trainFeaturePath,trainLabelPath,testFeaturePath,testLabelPath,batchN,imageN,epochs)
         return ac,vac
+
+class SWMADFrame(tk.Frame):
+    def __init__(self,master):
+        tk.Frame.__init__(self,master)
+        self.status = master.status
         
+        self.UIe={}        
         
 if __name__=='__main__':
     gui=GUI()    
