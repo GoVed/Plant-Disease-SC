@@ -448,8 +448,9 @@ class SegmentML:
         model_names=[1,2,3]
         for i in model_names:
             #load models weight and baises into the empty model
+            print(path+'/'+str(i)+'.h5')
             self.models[i]=tf.keras.models.load_model(path+'/'+str(i)+'.h5')
-        
+            
     '''
     predict:
         predicts the mask from the given image
@@ -582,9 +583,219 @@ class SegmentML:
             #call the processing function
             imgs.proc({'func':getimg,'loadImg':True})
     
+    
+class plantML:
+    
+    
+    def __init__(self,datasetPath:str='data/train/manseg'):
+        #set the values from the parameter
+        self.path=datasetPath
+        
+        #set the model setting functions
+        self.model=self.setModel()        
+        self.modelSavePath=''
+        
+    
+    def setModel(self,input_shape,output_classes):
+        model = tf.keras.models.Sequential()
+
+        model.add(tf.keras.layers.Convolution2D(32, (3, 3), padding="same",input_shape=input_shape))
+        model.add(tf.keras.layers.LeakyReLU(alpha=0.3))
+        model.add(tf.keras.layers.BatchNormalization())
+        model.add(tf.keras.layers.MaxPooling2D(pool_size=(3, 3)))
+        model.add(tf.keras.layers.Dropout(0.3))
+        
+        model.add(tf.keras.layers.Convolution2D(64, (3, 3), padding="same"))
+        model.add(tf.keras.layers.LeakyReLU(alpha=0.3))
+        model.add(tf.keras.layers.BatchNormalization())
+        model.add(tf.keras.layers.Dropout(0.3))
+        
+        model.add(tf.keras.layers.Convolution2D(64, (3, 3),strides=(2,2), padding="same"))
+        model.add(tf.keras.layers.LeakyReLU(alpha=0.3))
+        model.add(tf.keras.layers.BatchNormalization())
+        model.add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2)))
+        model.add(tf.keras.layers.Dropout(0.3))
+        
+        model.add(tf.keras.layers.Convolution2D(64, (3, 3), padding="same"))
+        model.add(tf.keras.layers.LeakyReLU(alpha=0.3))
+        model.add(tf.keras.layers.BatchNormalization())
+        model.add(tf.keras.layers.Dropout(0.3))
+        
+        model.add(tf.keras.layers.Convolution2D(64, (3, 3),strides=(2,2), padding="same"))
+        model.add(tf.keras.layers.LeakyReLU(alpha=0.3))
+        model.add(tf.keras.layers.BatchNormalization())
+        model.add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2)))
+        model.add(tf.keras.layers.Dropout(0.3))
+    
+    
+        model.add(tf.keras.layers.Flatten())
+    
+        model.add(tf.keras.layers.Dense(128))
+        model.add(tf.keras.layers.LeakyReLU(alpha=0.3))
+        model.add(tf.keras.layers.BatchNormalization())
+        model.add(tf.keras.layers.Dropout(0.3))
+        
+        model.add(tf.keras.layers.Dense(output_classes))
+        model.add(tf.keras.layers.Activation("softmax"))
+        return model
+    
+    '''
+    trainBatchWise:
+        train model batch wise, use this for huge data which cannot be simulataneously loaded into the batch
+        Args:
+            XTrainPath:str
+                path for training features
+            YTrainPath:str
+                path for training labels
+            XTestPath:str
+                path for testing features
+            YTestPath:str
+                path for testing labels
+            batches:int=10
+                total random batches to be trained
+            imagePerFolder:int=5
+                images per folder to be taken
+            epochs:int=10
+                epochs per batch for training
+            saveAfterTrain:bool=True
+                Boolean check to save model after training
+            deleteAfterTrain:bool=True
+                Boolean check to delete the model after training and saving
+        Return:
+            acs:list
+                list containing accuracy for each batch
+            vacs:list
+                list comntaing validation accuracy for each batch
+            
+    '''
+    def trainBatchWise(self,XTrainPath:str,YTrainPath:str,XTestPath:str,YTestPath:str,batches:int=10,imagePerFolder:int=5,epochs:int=10,saveAfterTrain:bool=True,deleteAfterTrain:bool=True):
+        
+        #preload a batch for initial batch
+        self.preloadData(XTrainPath,YTrainPath,XTestPath,YTestPath,imagePerFolder)
+        
+        #List saving the accuracy for each model
+        mac=[]
+        macv=[]
+        for model in self.models:            
+            print('Training model',model)  
+            
+            #List saving the accuracy of each batch
+            acs=[]
+            vacs=[]
+            
+            #Training batchwise
+            for i in range(batches):
+                print('Batch',i+1,'of',batches)
+                
+                #Get the preloaded data
+                self.loadFromPreload()
+                
+                #Preload another batch for next iteration/batch
+                self.preloadData(XTrainPath,YTrainPath,XTestPath,YTestPath,imagePerFolder)                      
+                
+                #fit the batch
+                ac,vac=self.fitModel(self.x_train, self.y_train, self.x_test, self.y_test,model,10,epochs)
+                
+                #append accuracy into batch list of accuracy
+                acs.append(ac)
+                vacs.append(vac)
+                
+            if saveAfterTrain and self.modelSavePath != '':
+                #Check if path exists or create it
+                iproc.createPathIfNotExist(self.modelSavePath)
+                
+                #save the model
+                self.models[model].save(self.modelSavePath+'/'+str(model)+'.h5')
+            
+            if deleteAfterTrain:
+                self.models[model]=None
+                
+            #Append all the batch accuracy into the model list for accuracies
+            mac.append(acs)
+            macv.append(vacs)
+        return mac,macv
+    
+    '''
+    compileModel:
+        compiles the setted model
+        Args:
+            None
+        Return:
+            None
+    '''
+    def compileModel(self): 
+        #compile all the models
+        for model in self.models:
+            self.models[model].compile(optimizer='Nadam', loss='categorical_crossentropy', metrics=['accuracy'])        
+        
+    
+    '''
+    fitModel:
+        fits the model for the training and saves history in class variable
+        Args:
+            x_train:
+                training features
+            y_train:
+                training labels
+            x_test:
+                test features
+            y_test:
+                test labels
+            batch_size:int
+                batch size for training
+    '''
+    def fitModel(self,x_train,y_train,x_test,y_test,model,batch_size:int=10,epochs=25):
+        #fit model with given data
+        history = self.models[model].fit(x=x_train,y=y_train,validation_data = (x_test,y_test),epochs = epochs,workers=6,batch_size=batch_size)
+        return history.history['accuracy'],history.history['val_accuracy']
+    
+    
+            
+    '''
+    preloadData:
+        preloads data in the background in parallel using threading
+        Args:
+            xTrainPath:str
+                training path for X Train set
+            YTrainPath:str
+                training path for Y Train set
+            XTestPath:str
+                training path for X Test set
+            YTestPath:str
+                training path for Y Test set
+            n:int
+                number of random images per folder to take in the set
+    '''
+    def preloadData(self,XTrainPath:str,YTrainPath:str,XTestPath:str,YTestPath:str,n:int=5):        
+        #get images async from train and test folders
+        self.preLoadTrainThread,self.preLoadTrainData=iproc.getImageFromFolderAsync(XTrainPath,YTrainPath,n)        
+        self.preLoadTestThread,self.preLoadTestData=iproc.getImageFromFolderAsync(XTestPath,YTestPath,n)
+        
+    '''
+    loadFromPreLoad:
+        waits for data to be preloaded and then loads data into numpy array suitable for model training
+        Args:
+            None
+    '''
+    def loadFromPreload(self):
+        #Wait for preload to finish
+        self.preLoadTrainThread.join()
+        self.preLoadTestThread.join()
+        
+        #process the data to be suitable for the model
+        self.x_train=np.array(self.preLoadTrainData.returnVal['X'],dtype=np.float32)
+        self.y_train=np.array(self.preLoadTrainData.returnVal['Y'],dtype=np.float32)[:,:,:,0]
+        self.y_train=np.reshape(self.y_train,(self.y_train.shape[0],self.y_train.shape[1],self.y_train.shape[2],1))
+        self.x_test=np.array(self.preLoadTestData.returnVal['X'],dtype=np.float32)
+        self.y_test=np.array(self.preLoadTestData.returnVal['Y'],dtype=np.float32)[:,:,:,0]
+        self.y_test=np.reshape(self.y_test,(self.y_test.shape[0],self.y_test.shape[1],self.y_test.shape[2],1))
+        
+        #Change 255->1 for labels
+        self.y_train/=255
+        self.y_test/=255
 if __name__=='__main__':
     test=SegmentML()
-    test.predictAndSaveFolder('data/train/raw', 'model/segment', 'data/train/segment')
+    test.predictAndSaveFolder('data/train/raw', 'model/segment', 'data/train/segment2')
     # print('You sucesssfully ran the print command and those imports')    
     
     

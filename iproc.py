@@ -440,24 +440,152 @@ def checkIfFileExist(paths):
     return False
 
 
-
+'''
+swmad:
+    generates sliding window mean absolute deviation
+    Args:
+        imgs:list
+            list of images to be processed
+        group_size:int
+            size of the group for calculating mean 
+        thresholde:int
+            threshold value for rgb to be included while calculating
+'''
 @nb.njit
-def swmad(imgs,group_size=5):
+def swmad(imgs,group_size=10,threshold=10):
+    #make zero array with same shape as images
     new=np.zeros_like(imgs)
+    
+    #for each image
     for img in range(np.shape(imgs)[0]):
-        for i in range(group_size,np.shape(imgs)[1]):        
-            for j in range(group_size,np.shape(imgs)[2]):   
-                try:
-                    new[img,i,j,0]=abs(imgs[img,i,j,0]-np.mean(imgs[img,i-group_size:i+group_size,j-group_size:j+group_size,0]))
-                    new[img,i,j,1]=abs(imgs[img,i,j,1]-np.mean(imgs[img,i-group_size:i+group_size,j-group_size:j+group_size,1]))
-                    new[img,i,j,2]=abs(imgs[img,i,j,2]-np.mean(imgs[img,i-group_size:i+group_size,j-group_size:j+group_size,2]))
-                except:
-                    pass                
+            
+        #for each pixel
+        for i in range(np.shape(imgs)[1]):        
+            for j in range(np.shape(imgs)[2]):   
+                
+                #Check the rgb threshold
+                if imgs[img,i,j,0]>threshold or imgs[img,i,j,1]>threshold or imgs[img,i,j,2]>threshold:
+                    try:
+                        #section containg the group for red
+                        sec=imgs[img,max(0,i-group_size):i+group_size,max(0,j-group_size):j+group_size,0]    
+                        
+                        #Calculating nan mean
+                        sec=np.nanmean(np.where(sec == 0, np.nan, sec))
+                        
+                        #calculating deviation of pixel with the mean
+                        new[img,i,j,0]=abs(imgs[img,i,j,0]-sec)
+                        
+                        #same process for green and blue
+                        sec=imgs[img,max(0,i-group_size):i+group_size,max(0,j-group_size):j+group_size,1]    
+                        sec=np.nanmean(np.where(sec == 0, np.nan, sec))
+                        new[img,i,j,1]=abs(imgs[img,i,j,1]-sec)
+                        sec=imgs[img,max(0,i-group_size):i+group_size,max(0,j-group_size):j+group_size,2]   
+                        sec=np.nanmean(np.where(sec == 0, np.nan, sec))
+                        new[img,i,j,2]=abs(imgs[img,i,j,2]-sec)
+                    except:
+                        pass                
     return new
+
+'''
+highlight:
+    Highlights the specific value from 255
+    Args:
+        x:int
+            the value of the pixel
+        p:int
+            the value of desired highlighted peak
+        s:float
+            spread the the function for highlight
+'''
+@nb.njit
+def highlight(x,p,s=0.01):
+    return (255/2)*s**((1/s)*(((x-p)**2)/((255**2)-((x-p)**2))))
+
+
+'''
+highlightColor:
+    Hihlights a specfic rgb value in the image
+    Args:
+        img:ndarray
+            numpy array containing the image
+        rgb:ndarray
+            numpy array containg the rgb value of hioghlight peak
+        spread:ndarray
+            numpy array containg the spread value for r g and b
+        threshold:int
+            threshold value for each pixel to be considered for highlight
+'''
+@nb.njit
+def highlightColor(img,rgb=np.array([50,10,10]),spread=np.array([0.05,0.075,0.075]),threshold=10):
+    img=img.astype(np.float32)
+    rgb=rgb.astype(np.float32)
+    std=np.zeros(img.shape)
+    
+    
+    for i in range(img.shape[0]):        
+        for j in range(img.shape[1]):
+            if img[i,j,0]>threshold or img[i,j,1]>threshold or img[i,j,2]>threshold:
+                img[i,j,0]=highlight(img[i,j,0],rgb[0],spread[0])
+                img[i,j,1]=highlight(img[i,j,1],rgb[1],spread[1])
+                img[i,j,2]=highlight(img[i,j,2],rgb[2],spread[2])
+                std[i,j,:]=np.std(img[i,j,:])
+    std/=np.max(std)
+    img*=(1-std)
+    
+    for i in range(img.shape[0]):        
+        for j in range(img.shape[1]):
+            img[i,j,:]=np.min(img[i,j,:])
+    return img.astype(np.uint8)
+
+'''
+overlayHighlight:
+    overlay image with the highlighted pixel value
+    Args:
+        img:ndarray
+            numpy array containing the image to generate the highlight map
+        overlay:ndarray
+            numpy array containing the overlay image
+        rgb:ndarray
+            numpy array containing the highlight peak values in r g and b
+        spread:ndarray
+            numpy array containg the spread value for r g and b
+        threshold:int
+            threshold value for each pixel to be considered for highlight
+'''
+@nb.njit
+def overlayHighlight(img,overlay,rgb=np.array([50,10,10]),spread=np.array([0.05,0.075,0.075]),threshold=10):
+    img=highlightColor(img,rgb=rgb,spread=spread,threshold=threshold).astype(np.float32)
+    img/=np.max(img)
+    return (overlay.astype(np.float32)*(1-img)).astype(np.uint8)
+
+def overlayMask(img,mask,is255=True,to255=False):
+    mask=np.reshape(mask,(mask.shape[0],mask.shape[1],1))   
+    mask=np.array(mask,dtype=np.float32)
+    if is255:
+        mask/=255
+    mask=mask*img
+    if to255:
+        mask=mask * 255
+    return mask.astype(np.uint8)
+    
+
+def calculateDiseasePart(img):
+    imgh=cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+    imgh=overlayHighlight(imgh,img,rgb=np.array([60,170,100]),spread=np.array([0.05,0.99,0.99])).astype(np.float32)
+    imgg=overlayHighlight(img,imgh,rgb=np.array([150,150,150]),spread=np.array([0.3,0.3,0.3])).astype(np.float32)
+    
+    return round(np.sum(imgg)/np.sum(img)*100,3)
+    
+def bgr2rgb(img):
+    return cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
 
 if __name__=='__main__':
     
-    print('Nice run!')
+    img=getImage('data\\train\\segment\\4\\Apple\\Apple_scab\\image (13).jpg',changeColor=True)
+    
+    
+
+
     
  
    

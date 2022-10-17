@@ -10,6 +10,20 @@ import threading
 import ml
 from PIL import ImageTk, Image
 import numpy as np
+
+'''
+setText:
+    sets the text of tkinter textfield
+    Args:
+        field:tkinter text object
+        text:str
+    Return:
+        None
+'''
+def setText(field,text:str):
+    field.delete(1.0, "end-1c")
+    field.insert("end-1c", text)
+
 '''
 Credits:
     GUI frame logic     :   Stevoisiak [https://stackoverflow.com/users/3357935/stevoisiak]
@@ -48,7 +62,7 @@ class GUI(tk.Tk):
         self.UIe['setManuallySegment']=tk.Button(self,text='Manually Segment',command=lambda:self.switch_frame(ManualSegmentFrame)).grid(row=1,column=1)
         self.UIe['setLoadSegmented']=tk.Button(self,text='Load Segmented',command=lambda:self.switch_frame(LoadSegmentFrame)).grid(row=1,column=2)
         self.UIe['setModelTraining']=tk.Button(self,text='Train Model',command=lambda:self.switch_frame(TrainModelFrame)).grid(row=2,column=0)
-        self.UIe['setModelTraining']=tk.Button(self,text='Train Model',command=lambda:self.switch_frame(SWMADFrame)).grid(row=2,column=1)
+        self.UIe['setModelTraining']=tk.Button(self,text='Show disease ',command=lambda:self.switch_frame(OutFrame)).grid(row=2,column=1)
         
         #Set initial frame to Train Test Frame
         self.switch_frame(TrainTestFrame)
@@ -376,7 +390,7 @@ class LoadSegmentFrame(tk.Frame):
         self.UIe['pathLabel'].grid(row=0,column=0)
         self.UIe['path'].grid(row=0,column=1)
         
-        self.UIe['path'].insert(tk.INSERT,'data/color')
+        setText(self.UIe['path'],'data/color')
         
         
         #UI to show batch label and input
@@ -385,7 +399,7 @@ class LoadSegmentFrame(tk.Frame):
         self.UIe['segmentedPathLabel'].grid(row=1,column=0)
         self.UIe['segmentedPath'].grid(row=1,column=1)
         
-        self.UIe['segmentedPath'].insert(tk.INSERT,'data/segmented')
+        setText(self.UIe['segmentedPath'],'data/segmented')
         
 
         self.UIe['segmentedPathSuffixLabel'] = tk.Label(self, text = 'Segmented Path Suffix:')  
@@ -393,7 +407,7 @@ class LoadSegmentFrame(tk.Frame):
         self.UIe['segmentedPathSuffixLabel'].grid(row=2,column=0)
         self.UIe['segmentedPathSuffix'].grid(row=2,column=1)
         
-        self.UIe['segmentedPathSuffix'].insert(tk.INSERT,'_final_masked')
+        setText(self.UIe['segmentedPathSuffix'],'_final_masked')
         
         #UI to show save path label and input
         self.UIe['savePathTrainLabel'] = tk.Label(self, text = 'Save Path (Train):')  
@@ -401,14 +415,14 @@ class LoadSegmentFrame(tk.Frame):
         self.UIe['savePathTrainLabel'].grid(row=3,column=0)
         self.UIe['savePathTrain'].grid(row=3,column=1)
         
-        self.UIe['savePathTrain'].insert(tk.INSERT,'data/train/manseg')
+        setText(self.UIe['savePathTrain'],'data/train/manseg')
         
         self.UIe['savePathTestLabel'] = tk.Label(self, text = 'Save Path (Test):')  
         self.UIe['savePathTest'] = tk.Text(self,height = 1,width = 20) 
         self.UIe['savePathTestLabel'].grid(row=4,column=0)
         self.UIe['savePathTest'].grid(row=4,column=1)
         
-        self.UIe['savePathTest'].insert(tk.INSERT,'data/test/manseg')
+        setText(self.UIe['savePathTest'],'data/test/manseg')
         
         
         #UI to show split ratio
@@ -417,7 +431,7 @@ class LoadSegmentFrame(tk.Frame):
         self.UIe['splitRatioLabel'].grid(row=5,column=0)
         self.UIe['splitRatio'].grid(row=5,column=1)
         
-        self.UIe['splitRatio'].insert(tk.INSERT,'0.7')
+        setText(self.UIe['splitRatio'],'0.7')
         
         #UI to show buttons
         self.UIe['process'] = tk.Button(self,text = "Process",command = self.__process)
@@ -490,35 +504,33 @@ class TrainModelFrame(tk.Frame):
         self.UIe['trainFeaturePathLabel'].grid(row=0,column=0)
         self.UIe['trainFeaturePath'].grid(row=0,column=1)
         
-        self.UIe['trainFeaturePath'].insert(tk.INSERT,'data/train/manseg/image')
+        
         
         self.UIe['trainLabelPathLabel'] = tk.Label(self, text = 'Train Labels Path:')  
         self.UIe['trainLabelPath'] = tk.Text(self,height = 1,width = 20) 
         self.UIe['trainLabelPathLabel'].grid(row=1,column=0)
         self.UIe['trainLabelPath'].grid(row=1,column=1)
         
-        self.UIe['trainLabelPath'].insert(tk.INSERT,'data/train/manseg/mask')
+        
         
         self.UIe['testFeaturePathLabel'] = tk.Label(self, text = 'Test Features Path:')  
         self.UIe['testFeaturePath'] = tk.Text(self,height = 1,width = 20) 
         self.UIe['testFeaturePathLabel'].grid(row=2,column=0)
         self.UIe['testFeaturePath'].grid(row=2,column=1)
         
-        self.UIe['testFeaturePath'].insert(tk.INSERT,'data/test/manseg/image')
+        
 
         self.UIe['testLabelPathLabel'] = tk.Label(self, text = 'Test Labels Path:')  
         self.UIe['testLabelPath'] = tk.Text(self,height = 1,width = 20) 
         self.UIe['testLabelPathLabel'].grid(row=3,column=0)
         self.UIe['testLabelPath'].grid(row=3,column=1)
         
-        self.UIe['testLabelPath'].insert(tk.INSERT,'data/test/manseg/mask')
         
         self.UIe['modelSavePathLabel'] = tk.Label(self, text = 'Model Save Path:')  
         self.UIe['modelSavePath'] = tk.Text(self,height = 1,width = 20) 
         self.UIe['modelSavePathLabel'].grid(row=4,column=0)
         self.UIe['modelSavePath'].grid(row=4,column=1)
         
-        self.UIe['modelSavePath'].insert(tk.INSERT,'model/segment')
 
         self.UIe['epochsLabel'] = tk.Label(self, text = 'Epochs:')  
         self.UIe['epochs'] = tk.Text(self,height = 1,width = 20) 
@@ -543,15 +555,33 @@ class TrainModelFrame(tk.Frame):
         self.modelType=tk.StringVar()
         self.modelType.set("Select model")
         self.UIe['modelTypeLabel'] = tk.Label(self, text = 'Model Type:')  
-        self.UIe['modelType'] = tk.OptionMenu(self, self.modelType,'Segmentation Model')
+        self.UIe['modelType'] = tk.OptionMenu(self, self.modelType,'Segmentation Model',command=self.__dropdownChange)
         self.UIe['modelTypeLabel'].grid(row=9,column=0)
         self.UIe['modelType'].grid(row=9,column=1)
+        
+        self.defaultPaths={}
+        
+        self.defaultPaths['Segmentation Model']={}
+        self.defaultPaths['Segmentation Model']['trainFeaturePath']='data/train/manseg/image'
+        self.defaultPaths['Segmentation Model']['trainLabelPath']='data/train/manseg/mask'
+        self.defaultPaths['Segmentation Model']['testFeaturePath']='data/test/manseg/image'
+        self.defaultPaths['Segmentation Model']['testLabelPath']='data/test/manseg/mask'
+        self.defaultPaths['Segmentation Model']['modelSavePath']='model/segment'
         
         #UI to show buttons
         self.UIe['trainFull'] = tk.Button(self,text = "Train All",command = self.__trainAll)
         self.UIe['trainFolder'] = tk.Button(self,text = "Train Folder",command = self.__trainFolder)
         self.UIe['trainFull'].grid(row=10,column=0)
         self.UIe['trainFolder'].grid(row=10,column=1)
+        
+        
+    def __dropdownChange(self,event):
+        val=self.modelType.get()
+        
+        for keys,vals in self.defaultPaths[val]:
+            setText(self.UIe[keys], vals)
+            
+
         
     '''
     __trainAll:
@@ -703,7 +733,7 @@ class TrainModelFrame(tk.Frame):
         ac,vac=self.mlTrain.trainBatchWise(trainFeaturePath,trainLabelPath,testFeaturePath,testLabelPath,batchN,imageN,epochs)
         return ac,vac
 
-class SWMADFrame(tk.Frame):
+class OutFrame(tk.Frame):
     def __init__(self,master):
         tk.Frame.__init__(self,master)
         self.status = master.status
