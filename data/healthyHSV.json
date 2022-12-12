@@ -1,0 +1,74 @@
+{
+    "Strawberry": {
+        "Healthy": {
+            "ph":50
+            ,"ps":170
+            ,"pv":110
+            ,"sh":0.05
+            ,"ss":1
+            ,"sv":1
+        },
+        "Background": {
+            "ph":165
+            ,"ps":200
+            ,"pv":200
+            ,"sh":0.3
+            ,"ss":1
+            ,"sv":1
+        }
+        },
+    "Apple": {
+        "Healthy": {
+            "ph":75
+            ,"ps":170
+            ,"pv":110
+            ,"sh":0.125
+            ,"ss":1
+            ,"sv":1
+        },
+        "Background": {
+            "ph":200
+            ,"ps":150
+            ,"pv":150
+            ,"sh":0.01
+            ,"ss":1
+            ,"sv":1
+        }
+    },
+    "Blueberry": {
+        "Healthy": {
+            "ph":65
+            ,"ps":145
+            ,"pv":70
+            ,"sh":0.15
+            ,"ss":1
+            ,"sv":1
+        },
+        "Background": {
+            "ph":210
+            ,"ps":185
+            ,"pv":185
+            ,"sh":0.3
+            ,"ss":1
+            ,"sv":1
+        }
+    },
+    "Castor": {
+        "Healthy": {
+            "ph":65
+            ,"ps":145
+            ,"pv":70
+            ,"sh":0.2
+            ,"ss":1
+            ,"sv":1
+        },
+        "Background": {
+            "ph":170
+            ,"ps":190
+            ,"pv":190
+            ,"sh":0.1
+            ,"ss":1
+            ,"sv":1
+        }
+    }
+}

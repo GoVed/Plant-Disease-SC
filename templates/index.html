@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Plant disease demo</title>
+</head>
+<body>
+    <h1>Demonstration of plant disease detection</h1>
+    <hr>
+    <div id="step1">
+        <h2>Step 1:</h2><br>
+        Upload a plant leaf image
+        <form enctype="multipart/form-data" method="post" name="fileinfo">
+            <label>Image to upload:</label>
+            <input type="hidden" name="uploadimg">
+            <input type="file" name="img" required />
+            <input type="submit" value="Upload image!" />
+        </form><br>
+        <p id="imgUploadStatus"></p>
+        <img id="resultimg" scr="">
+    </div>
+    <div id="step2">
+        <h2>Step 2:</h2><br>
+        Predicting the plant
+        <button id="detectPlant" onclick="detectPlant()">Predict Plant</button><br>
+        <h3><p id="swmadBeforeSegmentTitle"></p></h3>
+        <img id="swmadBeforeSegment" src="">
+        <p id="detectedPlant"></p>
+    </div>
+    <div id="step3">
+        <h2>Step 3:</h2><br>
+        Segmenting the plant image for further process
+        <button id="segmentImage" onclick="segmentImage()">Segment Plant Leaf</button><br>
+        <p id="imgSegmentStatus"></p>
+        <img id="segmentedImg" scr="">
+    </div>
+    <div id="step4">
+        <h2>Step 4:</h2><br>
+        Predicting the disease
+        <button id="detectDisease" onclick="detectDisease()">Predict Disease</button><br>
+        <h3><p id="swmadAfterSegmentTitle"></p></h3>
+        <img id="swmadAfterSegment" src="">
+        <p id="detectedDisease"></p>
+    </div>
+    <div id="step5">
+        <h2>Step 5:</h2><br>
+        Calculating the disease
+        <button id="calculateDisease" onclick="calculateDisease()">Calculate Disease</button><br>
+        <img id="highlight" src="">
+        <p id="calculatedDisease"></p>
+    </div>
+    <script>
+        document.getElementById('step2').style.display = 'none';
+        document.getElementById('step3').style.display = 'none';
+        document.getElementById('step4').style.display = 'none';
+        document.getElementById('step5').style.display = 'none';
+        
+        var plantName='';
+        var form = document.forms.namedItem("fileinfo");
+        form.addEventListener('submit', function(ev) {
+            var oData = new FormData(form);
+            var oReq = new XMLHttpRequest();
+            oReq.open("POST", "{{url_for('index')}}", true);
+            oReq.onload = function(oEvent) {
+                if (oReq.status == 200) {
+                    document.getElementById('step2').style.display = 'block';
+                    document.getElementById('imgUploadStatus').innerHTML="Image uploaded!";
+                    document.getElementById('resultimg').setAttribute('src',JSON.parse(oReq.responseText).result_image_location);
+                } else {
+                    alert("Error " + oReq.status + " occurred when trying to upload your file")
+                }
+            };
+            oReq.send(oData);
+            ev.preventDefault();
+        }, false);
+        
+        function detectPlant(){
+            document.getElementById('detectedPlant').innerHTML="Loading";
+            fetch("/predictPlant", {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(response => populatePlantResult(response))
+            
+        }
+        
+        function populatePlantResult(response){
+            document.getElementById('swmadBeforeSegment').setAttribute('src',response.result_image_location)
+            document.getElementById('swmadBeforeSegmentTitle').innerHTML="SWMAD image before segmentation";
+            
+            var i=0;            
+            var out="";
+            while(i<response["res"].length){
+                out+="<button onclick='setPlant(`"+response["res"][i]+"`)'>"+response["res"][i]+" : "+(parseFloat(response["values"][i])*100).toFixed(2)+"%</button><br>";
+                i++;
+            }
+            document.getElementById('detectedPlant').innerHTML=out;            
+        }
+        
+        function setPlant(plant){
+            plantName=plant;
+            document.getElementById('step3').style.display = 'block';    
+        }
+        
+        function segmentImage(){
+            document.getElementById('imgSegmentStatus').innerHTML="Loading";
+            fetch("/segmentImage", {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({'plant':plantName})
+            })
+            .then(response => response.json())
+            .then(response => setSegmentImg(response))
+        }
+        
+        function setSegmentImg(response){
+            document.getElementById('segmentedImg').setAttribute('src',response.result_image_location)
+            document.getElementById('imgSegmentStatus').innerHTML="";
+            document.getElementById('step4').style.display = 'block';
+        }
+        
+        function detectDisease(){
+            document.getElementById('detectedDisease').innerHTML="Loading";
+            fetch("/predictDisease", {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({'plant':plantName})
+            })
+            .then(response => response.json())
+            .then(response => populateDiseaseResult(response))
+            
+        }
+        
+        function populateDiseaseResult(response){
+            document.getElementById('swmadAfterSegment').setAttribute('src',response.result_image_location)
+            document.getElementById('swmadAfterSegmentTitle').innerHTML="SWMAD image after segmentation";
+            document.getElementById('step5').style.display = 'block';
+            var i=0;            
+            var out="<table><tr><th>Disease Name</th><th>Confidence</th>";
+            while(i<response["res"].length){
+                if(response["res"][i].length>0){
+                out+="<tr><td>"+response["res"][i]+"</td><td>"+(parseFloat(response["values"][i])*100).toFixed(2)+"%</td></tr><br>";
+                }                
+                i++;
+            }
+            out+="</table>"
+            document.getElementById('detectedDisease').innerHTML=out;            
+        }
+        
+        function calculateDisease(){
+            document.getElementById('calculatedDisease').innerHTML="Loading";
+            fetch("/calculateDisease", {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({'plant':plantName})
+            })
+            .then(response => response.json())
+            .then(response => showCalc(response))
+            
+        }
+        
+        function showCalc(response){
+            document.getElementById('calculatedDisease').innerHTML="Calculated Disease: "+response.res+"%";
+            document.getElementById('highlight').setAttribute('src',response.result_image_location)
+        }
+    </script>
+</body>
+</html>

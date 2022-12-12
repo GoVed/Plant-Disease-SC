@@ -7,6 +7,7 @@ Created on Thu Jun  9 14:27:22 2022
 import tensorflow as tf
 import iproc
 import numpy as np
+import gc
 '''
 segmentML:
     To segment images and generate a mask from it using Conv and ConvTranspose layers
@@ -446,10 +447,11 @@ class SegmentML:
     '''
     def loadModels(self,path):
         model_names=[1,2,3]
+        print('Loading models //',path)
         for i in model_names:
-            #load models weight and baises into the empty model
-            print(path+'/'+str(i)+'.h5')
+            #load models weight and baises into the empty model            
             self.models[i]=tf.keras.models.load_model(path+'/'+str(i)+'.h5')
+        print('loaded models')
             
     '''
     predict:
@@ -587,52 +589,37 @@ class SegmentML:
 class plantML:
     
     
-    def __init__(self,datasetPath:str='data/train/manseg'):
+    def __init__(self,datasetPath:str='data/train/segment/4'):
         #set the values from the parameter
         self.path=datasetPath
         
         #set the model setting functions
-        self.model=self.setModel()        
+        self.model=self.setModel(len(iproc.getFolders(datasetPath)))        
         self.modelSavePath=''
         
     
-    def setModel(self,input_shape,output_classes):
+    def setModel(self,output_classes):
         model = tf.keras.models.Sequential()
 
-        model.add(tf.keras.layers.Convolution2D(32, (3, 3), padding="same",input_shape=input_shape))
-        model.add(tf.keras.layers.LeakyReLU(alpha=0.3))
-        model.add(tf.keras.layers.BatchNormalization())
-        model.add(tf.keras.layers.MaxPooling2D(pool_size=(3, 3)))
-        model.add(tf.keras.layers.Dropout(0.3))
+        model.add(tf.keras.layers.Convolution2D(8, (5,5) ,strides=(2,2), padding="same",input_shape=(256,256,6)))
+        model.add(tf.keras.layers.LeakyReLU(alpha=0.2))
         
-        model.add(tf.keras.layers.Convolution2D(64, (3, 3), padding="same"))
-        model.add(tf.keras.layers.LeakyReLU(alpha=0.3))
-        model.add(tf.keras.layers.BatchNormalization())
+        model.add(tf.keras.layers.Convolution2D(16, (5,5),strides=(2,2), padding="same"))
         model.add(tf.keras.layers.Dropout(0.3))
-        
-        model.add(tf.keras.layers.Convolution2D(64, (3, 3),strides=(2,2), padding="same"))
-        model.add(tf.keras.layers.LeakyReLU(alpha=0.3))
-        model.add(tf.keras.layers.BatchNormalization())
-        model.add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2)))
-        model.add(tf.keras.layers.Dropout(0.3))
-        
-        model.add(tf.keras.layers.Convolution2D(64, (3, 3), padding="same"))
+               
+        model.add(tf.keras.layers.Convolution2D(32, (5,5),strides=(2,2), padding="same"))
         model.add(tf.keras.layers.LeakyReLU(alpha=0.3))
         model.add(tf.keras.layers.BatchNormalization())
         model.add(tf.keras.layers.Dropout(0.3))
         
-        model.add(tf.keras.layers.Convolution2D(64, (3, 3),strides=(2,2), padding="same"))
-        model.add(tf.keras.layers.LeakyReLU(alpha=0.3))
-        model.add(tf.keras.layers.BatchNormalization())
-        model.add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2)))
+        model.add(tf.keras.layers.Convolution2D(64, (5,5),strides=(2,2), padding="same"))
         model.add(tf.keras.layers.Dropout(0.3))
     
     
         model.add(tf.keras.layers.Flatten())
     
-        model.add(tf.keras.layers.Dense(128))
-        model.add(tf.keras.layers.LeakyReLU(alpha=0.3))
-        model.add(tf.keras.layers.BatchNormalization())
+        model.add(tf.keras.layers.Dense(64))
+    
         model.add(tf.keras.layers.Dropout(0.3))
         
         model.add(tf.keras.layers.Dense(output_classes))
@@ -668,52 +655,62 @@ class plantML:
                 list comntaing validation accuracy for each batch
             
     '''
-    def trainBatchWise(self,XTrainPath:str,YTrainPath:str,XTestPath:str,YTestPath:str,batches:int=10,imagePerFolder:int=5,epochs:int=10,saveAfterTrain:bool=True,deleteAfterTrain:bool=True):
+    def trainBatchWise(self,XTrainPath:str,YTrainPath:str,batches:int=10,imagePerFolderTrain:int=5,imagePerFolderTest:int=2,epochs:int=10,saveAfterTrain:bool=True,deleteAfterTrain:bool=True,saveName:str='plantmodel.h5',useBalProc=False):
         
+        print('Getting initial data')
         #preload a batch for initial batch
-        self.preloadData(XTrainPath,YTrainPath,XTestPath,YTestPath,imagePerFolder)
+        self.preloadData(XTrainPath,YTrainPath,imagePerFolderTrain,imagePerFolderTest,useBalProc)
         
-        #List saving the accuracy for each model
-        mac=[]
-        macv=[]
-        for model in self.models:            
-            print('Training model',model)  
+        print('Compiling model')
+        self.compileModel()
+        if self.modelSavePath=='':
+            self.modelSavePath='model'
+            print('Model save path updated to ',self.modelSavePath,'/',saveName)
+        cp_save = tf.keras.callbacks.ModelCheckpoint(self.modelSavePath+'/'+saveName, save_best_only=True, monitor='val_loss', mode='min')
+                  
+        print('Training model')  
+        
+        #List saving the accuracy of each batch
+        acs=[]
+        vacs=[]
+        
+        #Training batchwise
+        for i in range(batches):
+            print('Batch',i+1,'of',batches)
             
-            #List saving the accuracy of each batch
-            acs=[]
-            vacs=[]
+            # print('Getting the loaded data')
+            #Get the preloaded data
+            self.loadFromPreload()
             
-            #Training batchwise
-            for i in range(batches):
-                print('Batch',i+1,'of',batches)
-                
-                #Get the preloaded data
-                self.loadFromPreload()
-                
-                #Preload another batch for next iteration/batch
-                self.preloadData(XTrainPath,YTrainPath,XTestPath,YTestPath,imagePerFolder)                      
-                
-                #fit the batch
-                ac,vac=self.fitModel(self.x_train, self.y_train, self.x_test, self.y_test,model,10,epochs)
-                
-                #append accuracy into batch list of accuracy
-                acs.append(ac)
-                vacs.append(vac)
-                
-            if saveAfterTrain and self.modelSavePath != '':
-                #Check if path exists or create it
-                iproc.createPathIfNotExist(self.modelSavePath)
-                
-                #save the model
-                self.models[model].save(self.modelSavePath+'/'+str(model)+'.h5')
+            # print('Getting data for next batch in background')
+            #Preload another batch for next iteration/batch
+            self.preloadData(XTrainPath,YTrainPath,imagePerFolderTrain,imagePerFolderTest,useBalProc)                      
             
-            if deleteAfterTrain:
-                self.models[model]=None
+            # print('Training')
+            #fit the batch
+            try:
+                ac,vac=self.fitModel(self.x_train, self.y_train, self.x_test, self.y_test,cp_save,20,epochs)
+            except:
+                ac,vac=[0,0,0],[0,0,0]
+            
+            del self.x_train, self.y_train, self.x_test, self.y_test
+            gc.collect()
+            #append accuracy into batch list of accuracy
+            acs.append(ac)
+            vacs.append(vac)
+            
+        if saveAfterTrain and self.modelSavePath != '':
+            #Check if path exists or create it
+            iproc.createPathIfNotExist(self.modelSavePath)
+            
+            #save the model
+            self.model.save(self.modelSavePath+'/'+saveName)
+        
+        if deleteAfterTrain:
+            self.model=None
                 
-            #Append all the batch accuracy into the model list for accuracies
-            mac.append(acs)
-            macv.append(vacs)
-        return mac,macv
+            
+        return acs,vacs
     
     '''
     compileModel:
@@ -724,9 +721,8 @@ class plantML:
             None
     '''
     def compileModel(self): 
-        #compile all the models
-        for model in self.models:
-            self.models[model].compile(optimizer='Nadam', loss='categorical_crossentropy', metrics=['accuracy'])        
+        #compile the models
+        self.model.compile(optimizer='Nadam', loss='categorical_crossentropy', metrics=['accuracy'])        
         
     
     '''
@@ -744,9 +740,9 @@ class plantML:
             batch_size:int
                 batch size for training
     '''
-    def fitModel(self,x_train,y_train,x_test,y_test,model,batch_size:int=10,epochs=25):
+    def fitModel(self,x_train,y_train,x_test,y_test,cp_save,batch_size:int=5,epochs=10):
         #fit model with given data
-        history = self.models[model].fit(x=x_train,y=y_train,validation_data = (x_test,y_test),epochs = epochs,workers=6,batch_size=batch_size)
+        history = self.model.fit(x=x_train,y=y_train,validation_data = (x_test,y_test),epochs = epochs,workers=6,callbacks=[cp_save])
         return history.history['accuracy'],history.history['val_accuracy']
     
     
@@ -766,10 +762,13 @@ class plantML:
             n:int
                 number of random images per folder to take in the set
     '''
-    def preloadData(self,XTrainPath:str,YTrainPath:str,XTestPath:str,YTestPath:str,n:int=5):        
+    def preloadData(self,XTrainPath:str,XTestPath:str,ntrain:int=5,ntest:int=2,useBalProc=False):        
+        
         #get images async from train and test folders
-        self.preLoadTrainThread,self.preLoadTrainData=iproc.getImageFromFolderAsync(XTrainPath,YTrainPath,n)        
-        self.preLoadTestThread,self.preLoadTestData=iproc.getImageFromFolderAsync(XTestPath,YTestPath,n)
+        self.preLoadTrainThread,self.preLoadTrainData=iproc.getImageWithFolderIDAsync(XTrainPath,ntrain,True,useBalProc)  
+        
+        self.preLoadTestThread,self.preLoadTestData=iproc.getImageWithFolderIDAsync(XTestPath,ntest,True,useBalProc)
+        
         
     '''
     loadFromPreLoad:
@@ -778,24 +777,63 @@ class plantML:
             None
     '''
     def loadFromPreload(self):
-        #Wait for preload to finish
         self.preLoadTrainThread.join()
-        self.preLoadTestThread.join()
+        self.preLoadTrainThread.join()
         
         #process the data to be suitable for the model
         self.x_train=np.array(self.preLoadTrainData.returnVal['X'],dtype=np.float32)
-        self.y_train=np.array(self.preLoadTrainData.returnVal['Y'],dtype=np.float32)[:,:,:,0]
-        self.y_train=np.reshape(self.y_train,(self.y_train.shape[0],self.y_train.shape[1],self.y_train.shape[2],1))
-        self.x_test=np.array(self.preLoadTestData.returnVal['X'],dtype=np.float32)
-        self.y_test=np.array(self.preLoadTestData.returnVal['Y'],dtype=np.float32)[:,:,:,0]
-        self.y_test=np.reshape(self.y_test,(self.y_test.shape[0],self.y_test.shape[1],self.y_test.shape[2],1))
+        self.y_train=np.array(self.preLoadTrainData.returnVal['Y'],dtype=np.float32)
         
-        #Change 255->1 for labels
-        self.y_train/=255
-        self.y_test/=255
+        self.x_test=np.array(self.preLoadTestData.returnVal['X'],dtype=np.float32)
+        self.y_test=np.array(self.preLoadTestData.returnVal['Y'],dtype=np.float32)
+        self.de=np.copy(self.y_test)
+        del self.preLoadTrainData,self.preLoadTestData
+        
+        
+        
+    def loadModel(self,path):
+        print('Loading model //',path)
+        self.model=tf.keras.models.load_model(path)
+        print('Loaded model')
+            
+    def predict(self,img,returnswmad=False):
+        swmadimg=iproc.swmad(img)
+        img=np.concatenate((img,swmadimg),axis=2)
+        
+        img=np.reshape(img,(1,img.shape[0],img.shape[1],img.shape[2]))
+        if returnswmad:
+            return self.model.predict(img)[0],swmadimg
+        else:
+            return self.model.predict(img)[0]
+        
+    def predictPath(self,path:str,returnswmad:bool=False):
+        img=iproc.getImage(path,size=(256,256),changeColor=True)
+        
+        return self.predict(img,returnswmad)
+        
+            
+        
 if __name__=='__main__':
-    test=SegmentML()
-    test.predictAndSaveFolder('data/train/raw', 'model/segment', 'data/train/segment2')
+    test=plantML()
+    test.loadModel('model/plant.h5')
+    out=test.predictPath('data/test/raw/Apple/Apple_scab/image (21).JPG')
+    
+    # plantTrain=plantML()
+    # ac,vc=plantTrain.trainBatchWise('data/train/raw','data/test/raw', batches=400,epochs=3,imagePerFolderTrain=10,imagePerFolderTest=5,saveName='plant.h5',useBalProc=True)
+    # np.savetxt('model/acplant.csv',ac,delimiter =", ", fmt ='% s')
+    # np.savetxt('model/vcplant.csv',vc,delimiter =", ", fmt ='% s')
+    # del plantTrain
+    
+    # folders=iproc.getFolders('data/train/segment/4')
+    # for folder in folders:
+    #     diseaseTrain=plantML(datasetPath='data/train/segment/4/'+folder)
+    #     ac,vc=diseaseTrain.trainBatchWise('data/train/segment/4/'+folder,'data/test/segment/4/'+folder,batches=400,epochs=3,imagePerFolderTrain=10,imagePerFolderTest=5,saveName='disease'+folder+'.h5')
+    #     np.savetxt('model/ac'+folder+'.csv',ac,delimiter =", ", fmt ='% s')
+    #     np.savetxt('model/vc'+folder+'.csv',vc,delimiter =", ", fmt ='% s')
+    #     del diseaseTrain
+    
+    # test=SegmentML()
+    # test.predictAndSaveFolder('data/test/raw', 'model/segment', 'data/test/segment')
     # print('You sucesssfully ran the print command and those imports')    
     
     

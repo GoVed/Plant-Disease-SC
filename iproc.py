@@ -16,6 +16,7 @@ import numpy as np
 import numba as nb
 from scipy import ndimage
 import threading
+import json
 
 '''
 Class to store data and process it
@@ -78,10 +79,10 @@ class Data:
             
             if 'updateInfoEvery' in data:
                 updateInfoEvery=data['updateInfoEvery']
-            for label in labels:
-                
+            for label in labels:                
                 #For each label get all files from the subdirectories
                 for ipath, subdirs, files in os.walk(os.path.join(self.path, label)):
+                    
                     if 'randomBatchN' in data:
                         if len(files)>data['randomBatchN']:
                             random.shuffle(files)
@@ -126,7 +127,80 @@ class Data:
         if 'return' in data and data['return']:
             return self.returnVal
            
+    #Gets images from the folder with labels as immediated heirarchy folder name to the path  
+    #func=None,tkinterStatus=None,randomBatchN:int=0,updateInfoEvery=10,loadImg=True,
+    def balProc(self,data):        
+        #Initialize loader
+        if self.info: 
+            loader = iconsole.Loader("Processing images", "Processed images")
+                        
+        try:
+                      
+            #Get all directories in the path, take them as labels
+            labels=[name for name in os.listdir(self.path)]
             
+            #To count the speed of processing
+            lt=time.time()
+            updateCheck=0
+            updateInfoEvery=10
+            
+            if 'onStart' in data:
+                data['onStart']()
+            
+            if 'updateInfoEvery' in data:
+                updateInfoEvery=data['updateInfoEvery']
+            for label in labels:          
+                files=[]
+                #For each label get all files from the subdirectories
+                for ipath, subdirs, filest in os.walk(os.path.join(self.path, label)):
+                    for filen in filest:
+                        files.append([ipath,filen])
+                    
+                if 'randomBatchN' in data:
+                    if len(files)>data['randomBatchN']:
+                        random.shuffle(files)
+                        files=files[:data['randomBatchN']] 
+                
+                
+                for file in files:                          
+                    if self.info:
+                        if updateCheck>=updateInfoEvery:
+                            status= file[0]+'/'+file[1]+' '+(str(round(updateInfoEvery/(time.time()-lt)))+'/s') if time.time()>lt else ''
+                            loader.desc=status
+                            if 'tkinterStatus' in data:
+                                data['tkinterStatus'].set(status+'\nTime elapsed: '+loader.elapsedTime)                                                                
+                            lt=time.time()
+                            updateCheck=0
+                        else:
+                            updateCheck+=1
+                    
+                    #Get image from the path
+                    img=None
+                    if ('loadImg' in data) and (data['loadImg']):
+                        img=getImage(os.path.join(file[0],file[1]),(self.x,self.y),self.changeColor)
+                    
+                    #Calling the process function
+                    if 'func' in data:
+                        data['func'](img,os.path.relpath(file[0], self.path),file[1])
+                            
+                        
+                                                    
+                        
+            if 'tkinterStatus' in data:
+                data['tkinterStatus'].set('Proccessed Images') 
+                
+            if 'onEnd' in data:
+                data['onEnd']()
+        
+        except Exception :
+            print('\nFailed to get Images\n',traceback.print_exc())
+                        
+        #Stop the loader
+        if self.info:             
+            loader.stop()
+        
+        if 'return' in data and data['return']:
+            return self.returnVal
     # Splits the given dataset with given ratio
     def trainTestSplit(self,trainPath:str,testPath:str,split:float=0.7,tkinterStatus=None):
         
@@ -359,10 +433,10 @@ def getImageFromFolderAsync(XPath:str,YPath:str,n:int=5):
     #update function for each image
     def getimg(img,relpath,name):
         
-        #Get image from the train set
+        #Get image from the XPath
         getData.returnVal['X'].append(getImage(os.path.join(os.path.join(getData.XPath, relpath),name),(getData.x,getData.y),getData.changeColor))
         
-        #Get image from the test set
+        #Get image from the YPath
         getData.returnVal['Y'].append(getImage(os.path.join(os.path.join(getData.YPath, relpath),name),(getData.x,getData.y),getData.changeColor))        
        
     #Setting the thread    
@@ -373,6 +447,46 @@ def getImageFromFolderAsync(XPath:str,YPath:str,n:int=5):
     #Returning the started thread to do the processing
     return thread,getData  
 
+def getImageWithFolderIDAsync(XPath:str,n:int=5,doSwmad=False,useBalProc=False):
+    #create data object for processing
+    getData=Data()
+    
+    #setting the train folder path
+    getData.path=XPath
+    
+    #variable to be returned in async
+    getData.returnVal={}
+    getData.returnVal['X']=[]
+    getData.returnVal['Y']=[]
+    
+    
+    folders=getFolders(XPath)
+    
+    def getimg(img,relpath,name):
+        if doSwmad:
+            img=np.concatenate((img,swmad(img)),axis=2)
+        #Get image from the XPath
+        getData.returnVal['X'].append(img)
+        
+        #Get onehot encoded folder name
+        temp=np.zeros(len(folders))
+        fname=relpath
+        if '\\' in fname:
+            fname=fname[:fname.index('\\')]
+        temp[folders.index(fname)]=1
+        
+        getData.returnVal['Y'].append(temp)    
+
+    #Setting the thread    
+    if useBalProc:
+        thread=threading.Thread(target=getData.balProc,args=({'func':getimg,'return':True,'loadImg':True,'randomBatchN':n},))
+    else:
+        thread=threading.Thread(target=getData.proc,args=({'func':getimg,'return':True,'loadImg':True,'randomBatchN':n},))
+    thread.setDaemon(True)
+    thread.start() 
+    
+    #Returning the started thread to do the processing
+    return thread,getData 
 '''
 getFolders:
     get the names of the folder in the given path
@@ -382,7 +496,7 @@ getFolders:
         folders:list    The list of folder in string present in the path
 '''
 def getFolders(path):
-    return [f.name for f in os.scandir(path) if f.is_dir()]
+    return sorted([f.name for f in os.scandir(path.strip()) if f.is_dir()])
 
 '''
 binaryProb:
@@ -451,40 +565,33 @@ swmad:
         thresholde:int
             threshold value for rgb to be included while calculating
 '''
-@nb.njit
-def swmad(imgs,group_size=10,threshold=10):
+@nb.njit(parallel=True)
+def swmadnb(img,avg,group_size=10,threshold=10):
     #make zero array with same shape as images
-    new=np.zeros_like(imgs)
     
-    #for each image
-    for img in range(np.shape(imgs)[0]):
+    new=np.zeros_like(img)    
+    
+    for i in nb.prange(np.shape(img)[0]):        
+        for j in nb.prange(np.shape(img)[1]):   
             
-        #for each pixel
-        for i in range(np.shape(imgs)[1]):        
-            for j in range(np.shape(imgs)[2]):   
-                
-                #Check the rgb threshold
-                if imgs[img,i,j,0]>threshold or imgs[img,i,j,1]>threshold or imgs[img,i,j,2]>threshold:
-                    try:
-                        #section containg the group for red
-                        sec=imgs[img,max(0,i-group_size):i+group_size,max(0,j-group_size):j+group_size,0]    
-                        
-                        #Calculating nan mean
-                        sec=np.nanmean(np.where(sec == 0, np.nan, sec))
-                        
-                        #calculating deviation of pixel with the mean
-                        new[img,i,j,0]=abs(imgs[img,i,j,0]-sec)
-                        
-                        #same process for green and blue
-                        sec=imgs[img,max(0,i-group_size):i+group_size,max(0,j-group_size):j+group_size,1]    
-                        sec=np.nanmean(np.where(sec == 0, np.nan, sec))
-                        new[img,i,j,1]=abs(imgs[img,i,j,1]-sec)
-                        sec=imgs[img,max(0,i-group_size):i+group_size,max(0,j-group_size):j+group_size,2]   
-                        sec=np.nanmean(np.where(sec == 0, np.nan, sec))
-                        new[img,i,j,2]=abs(imgs[img,i,j,2]-sec)
-                    except:
-                        pass                
+            #Check the rgb threshold
+            if img[i,j,0]>threshold or img[i,j,1]>threshold or img[i,j,2]>threshold:
+                try:
+                    
+                    new[i,j,:]=np.absolute(img[i,j,:]-avg[i,j,:])
+
+                except:
+                    pass 
+    
+              
+    
     return new
+
+def swmad(img,group_size=5,threshold=10):
+    avg =  cv2.medianBlur(img,group_size*2+1)
+    
+    # return np.absolute(np.subtract(avg.astype(np.int),img.astype(np.int))).astype(np.uint8)
+    return swmadnb(avg.astype(np.int),img.astype(np.int),group_size,threshold).astype(np.uint8)
 
 '''
 highlight:
@@ -499,7 +606,7 @@ highlight:
 '''
 @nb.njit
 def highlight(x,p,s=0.01):
-    return (255/2)*s**((1/s)*(((x-p)**2)/((255**2)-((x-p)**2))))
+    return (255)*s**((1/s)*(((x-p)**2)/((255**2)-((x-p)**2))))
 
 
 '''
@@ -517,6 +624,7 @@ highlightColor:
 '''
 @nb.njit
 def highlightColor(img,rgb=np.array([50,10,10]),spread=np.array([0.05,0.075,0.075]),threshold=10):
+    
     img=img.astype(np.float32)
     rgb=rgb.astype(np.float32)
     std=np.zeros(img.shape)
@@ -525,12 +633,12 @@ def highlightColor(img,rgb=np.array([50,10,10]),spread=np.array([0.05,0.075,0.07
     for i in range(img.shape[0]):        
         for j in range(img.shape[1]):
             if img[i,j,0]>threshold or img[i,j,1]>threshold or img[i,j,2]>threshold:
-                img[i,j,0]=highlight(img[i,j,0],rgb[0],spread[0])
-                img[i,j,1]=highlight(img[i,j,1],rgb[1],spread[1])
-                img[i,j,2]=highlight(img[i,j,2],rgb[2],spread[2])
+                img[i,j,0]=highlight(max(0.001,img[i,j,0]),rgb[0],spread[0])
+                img[i,j,1]=highlight(max(0.001,img[i,j,1]),rgb[1],spread[1])
+                img[i,j,2]=highlight(max(0.001,img[i,j,2]),rgb[2],spread[2])
                 std[i,j,:]=np.std(img[i,j,:])
-    std/=np.max(std)
-    img*=(1-std)
+    # std/=np.max(std)
+    # img*=(1-std)
     
     for i in range(img.shape[0]):        
         for j in range(img.shape[1]):
@@ -569,15 +677,35 @@ def overlayMask(img,mask,is255=True,to255=False):
     return mask.astype(np.uint8)
     
 
-def calculateDiseasePart(img):
+def calculateDiseasePart(img,plant:str="",returnProcImg:bool=False):
     imgh=cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
-    imgh=overlayHighlight(imgh,img,rgb=np.array([60,170,100]),spread=np.array([0.05,0.99,0.99])).astype(np.float32)
-    imgg=overlayHighlight(img,imgh,rgb=np.array([150,150,150]),spread=np.array([0.3,0.3,0.3])).astype(np.float32)
+    if plant=="":
+        imgh=overlayHighlight(imgh,img,rgb=np.array([60,170,100]),spread=np.array([0.05,0.99,0.99])).astype(np.float32)
+        imgg=overlayHighlight(img,imgh,rgb=np.array([150,150,150]),spread=np.array([0.3,0.3,0.3])).astype(np.float32)
+    else:
+        f = open('data/healthyHSV.json')
+        vals=json.load(f)
+        
+        rgbhp=np.array([vals[plant]['Healthy']['ph'],vals[plant]['Healthy']['ps'],vals[plant]['Healthy']['pv']])
+        rgbhs=np.array([vals[plant]['Healthy']['sh'],vals[plant]['Healthy']['ss'],vals[plant]['Healthy']['sv']])
+        rgbbp=np.array([vals[plant]['Background']['ph'],vals[plant]['Background']['ps'],vals[plant]['Background']['pv']])
+        rgbbs=np.array([vals[plant]['Background']['sh'],vals[plant]['Background']['ss'],vals[plant]['Background']['sv']])
+        f.close()
+        imgh=overlayHighlight(imgh,img,rgb=rgbhp,spread=rgbhs).astype(np.float32)
+        imgg=overlayHighlight(cv2.cvtColor(img, cv2.COLOR_RGB2HSV),imgh,rgb=rgbbp,spread=rgbbs).astype(np.float32)
     
-    return round(np.sum(imgg)/np.sum(img)*100,3)
+    if returnProcImg:
+        return round((np.sum(imgg)/np.sum(img))*100,3),imgg
+    else:
+        return round((np.sum(imgg)/np.sum(img))*100,3)
     
+
+                
 def bgr2rgb(img):
     return cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
+
+def rgb_to_hsv(img):
+    return cv2.cvtColor(img,cv2.COLOR_RGB2HSV)
 
 if __name__=='__main__':
     

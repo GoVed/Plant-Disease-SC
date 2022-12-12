@@ -62,7 +62,7 @@ class GUI(tk.Tk):
         self.UIe['setManuallySegment']=tk.Button(self,text='Manually Segment',command=lambda:self.switch_frame(ManualSegmentFrame)).grid(row=1,column=1)
         self.UIe['setLoadSegmented']=tk.Button(self,text='Load Segmented',command=lambda:self.switch_frame(LoadSegmentFrame)).grid(row=1,column=2)
         self.UIe['setModelTraining']=tk.Button(self,text='Train Model',command=lambda:self.switch_frame(TrainModelFrame)).grid(row=2,column=0)
-        self.UIe['setModelTraining']=tk.Button(self,text='Show disease ',command=lambda:self.switch_frame(OutFrame)).grid(row=2,column=1)
+        # self.UIe['setModelTraining']=tk.Button(self,text='Show disease ',command=lambda:self.switch_frame(OutFrame)).grid(row=2,column=1)
         
         #Set initial frame to Train Test Frame
         self.switch_frame(TrainTestFrame)
